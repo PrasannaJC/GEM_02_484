@@ -10,7 +10,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Header
 from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import Float32
-from skimage import morphology
+# from skimage import morphology
 from controller import vehicleController
 
 
@@ -118,8 +118,7 @@ class lanenet_detector():
         binaryImage[(ColorOutput == 1) | (SobelOutput == 1)] = 1
 
         # Remove noise from binary image
-        binaryImage = morphology.remove_small_objects(
-            binaryImage.astype('bool'), min_size=20, connectivity=2)
+        # binaryImage = morphology.remove_small_objects(binaryImage.astype('bool'), min_size=20, connectivity=2)
 
         binaryImage = binaryImage.astype('uint8')
         cv2.imwrite("cbi.png", binaryImage*255)
