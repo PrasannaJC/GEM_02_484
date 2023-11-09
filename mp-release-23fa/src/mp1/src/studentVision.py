@@ -20,9 +20,9 @@ class lanenet_detector():
         self.bridge = CvBridge()
         # NOTE
         # Uncomment this line for lane detection of GEM car in Gazebo
-        # self.sub_image = rospy.Subscriber('/gem/front_single_camera/front_single_camera/image_raw', Image, self.img_callback, queue_size=1)
+        self.sub_image = rospy.Subscriber('/gem/front_single_camera/front_single_camera/image_raw', Image, self.img_callback, queue_size=1)
         # rosbag
-        self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
+        # self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
         self.pub_image = rospy.Publisher("lane_detection/annotate", Image, queue_size=1)
         self.pub_bird = rospy.Publisher("lane_detection/birdseye", Image, queue_size=1)
         self.left_line = Line(n=5)
@@ -143,43 +143,60 @@ class lanenet_detector():
         img_size = (img.shape[1], img.shape[0])
 
         # gazebo warp
-        # if curr_x > -5:
-        #     src = np.float32(
-        #         [
-        #             [250, 290],     # Upper left
-        #             [330, 290],   # Upper right
-        #             [350, 470],  # Lower right
-        #             [150, 470],  # Lower left
-        #         ]
-        #     )
-        #     dst = np.float32(
-        #         [
-        #             [0, 0],     # Upper left
-        #             [540, 0],   # Upper right
-        #             [450, 480],  # Lower right
-        #             [220, 480],  # Lower left
-        #         ]
-        #     )
-        # else:
-        #     src = np.float32(
-        #         [
-        #             [320, 275],     # Upper left
-        #             [370, 275],   # Upper right
-        #             [460, 470],  # Lower right
-        #             [230, 470],  # Lower left
-        #         ]
-        #     )
-        #     dst = np.float32(
-        #         [
-        #             [0, 0],     # Upper left
-        #             [540, 0],   # Upper right
-        #             [450, 480],  # Lower right
-        #             [180, 480],  # Lower left
-        #         ]
-        #     )
+        if curr_x > -5:
+            src = np.float32(
+                [
+                    [250, 290],     # Upper left
+                    [330, 290],   # Upper right
+                    [350, 470],  # Lower right
+                    [150, 470],  # Lower left
+                ]
+            )
+            dst = np.float32(
+                [
+                    [0, 0],     # Upper left
+                    [540, 0],   # Upper right
+                    [450, 480],  # Lower right
+                    [220, 480],  # Lower left
+                ]
+            )
+        else:
+            src = np.float32(
+                [
+                    [320, 275],     # Upper left
+                    [370, 275],   # Upper right
+                    [460, 470],  # Lower right
+                    [230, 470],  # Lower left
+                ]
+            )
+            dst = np.float32(
+                [
+                    [0, 0],     # Upper left
+                    [540, 0],   # Upper right
+                    [450, 480],  # Lower right
+                    [180, 480],  # Lower left
+                ]
+            )
             
+            
+            # src = np.float32(
+            #     [
+            #         [240, 270],     # Upper left
+            #         [360, 270],   # Upper right
+            #         [410, 470],  # Lower right
+            #         [150, 470],  # Lower left
+            #     ]
+            # )
+            # dst = np.float32(
+            #     [
+            #         [0, 0],     # Upper left
+            #         [540, 0],   # Upper right
+            #         [450, 480],  # Lower right
+            #         [180, 480],  # Lower left
+            #     ]
+            # )
 
-        # Rosbag transform
+        # 0830 transform
         # src = np.float32(
         #     [
         #         [320, 400],     # Upper left
@@ -188,22 +205,14 @@ class lanenet_detector():
         #         [200, 480],  # Lower left
         #     ]
         # )
-        src = np.float32(
-            [
-                [400, 390],     # Upper left
-                [520, 390],   # Upper right
-                [640, 480], # Lower right
-                [200, 480],  # Lower left
-            ]
-        )
-        dst = np.float32(
-            [
-                [0, 0],     # Upper left
-                [640, 0],   # Upper right
-                [640, 480], # Lower right
-                [0, 480],  # Lower left
-            ]
-        )
+        # dst = np.float32(
+        #     [
+        #         [0, 0],     # Upper left
+        #         [640, 0],   # Upper right
+        #         [640, 480], # Lower right
+        #         [0, 480],  # Lower left
+        #     ]
+        # )
 
         M = cv2.getPerspectiveTransform(src, dst)
         Minv = cv2.getPerspectiveTransform(dst, src)
