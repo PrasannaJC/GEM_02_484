@@ -4,7 +4,8 @@ import numpy as np
 import cv2
 import rospy
 
-from line_fit import line_fit, tune_fit, bird_fit, final_viz
+# from line_fit import lineFit 
+from line_fit import line_fit, tune_fit, bird_fit, final_viz, create_waypoints
 from Line import Line
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
@@ -12,6 +13,8 @@ from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import Float32
 # from skimage import morphology
 from controller import vehicleController
+from std_msgs.msg import Float32MultiArray
+
 
 
 class lanenet_detector():
@@ -20,11 +23,17 @@ class lanenet_detector():
         self.bridge = CvBridge()
         # NOTE
         # Uncomment this line for lane detection of GEM car in Gazebo
-        self.sub_image = rospy.Subscriber('/gem/front_single_camera/front_single_camera/image_raw', Image, self.img_callback, queue_size=1)
+        self.sub_image = rospy.Subscriber(
+            '/gem/front_single_camera/front_single_camera/image_raw', Image, self.img_callback, queue_size=1)
         # rosbag
         # self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
-        self.pub_image = rospy.Publisher("lane_detection/annotate", Image, queue_size=1)
-        self.pub_bird = rospy.Publisher("lane_detection/birdseye", Image, queue_size=1)
+        self.pub_image = rospy.Publisher(
+            "lane_detection/annotate", Image, queue_size=1)
+        self.pub_bird = rospy.Publisher(
+            "lane_detection/birdseye", Image, queue_size=1)
+        self.pub_waypoints = rospy.Publisher(
+            'chatter', Float32MultiArray, queue_size=10)
+    
         self.left_line = Line(n=5)
         self.right_line = Line(n=5)
         self.detected = False
@@ -39,7 +48,11 @@ class lanenet_detector():
             print(e)
 
         raw_img = cv_image.copy()
-        mask_image, bird_image = self.detection(raw_img)
+        # mask_image, bird_image = self.detection(raw_img)
+        mask_image, bird_image, waypoints = self.detection(raw_img)
+
+        # print('-----------------------------------------------')
+        # print('waypoints', waypoints)
 
         if mask_image is not None and bird_image is not None:
             # Convert an OpenCV image into a ROS image message
@@ -49,6 +62,14 @@ class lanenet_detector():
             # Publish image message in ROS
             self.pub_image.publish(out_img_msg)
             self.pub_bird.publish(out_bird_msg)
+
+            msg = Float32MultiArray()
+            msg.data = sum(waypoints, [])
+
+            self.pub_waypoints.publish(msg)
+        # return waypoints
+        return raw_img
+        
 
     def gradient_thresh(self, img, thresh_min=25, thresh_max=100):
         """
@@ -78,7 +99,7 @@ class lanenet_detector():
         binary_output[(sobel_scaled >= thresh_min) &
                       (sobel_scaled <= thresh_max)] = 1
 
-        cv2.imwrite("gradient_thresh.png",binary_output*255)
+        # cv2.imwrite("gradient_thresh.png",binary_output*255)
         return binary_output
 
     def color_thresh(self, img, thresh=(20, 250)):
@@ -101,7 +122,7 @@ class lanenet_detector():
         binary_output = np.zeros_like(s_channel)
         binary_output[(s_binary == 1) & (h_binary == 1)] = 1
 
-        cv2.imwrite("color_thresh.png",binary_output*255)
+        # cv2.imwrite("color_thresh.png",binary_output*255)
         return binary_output
 
 
@@ -117,8 +138,7 @@ class lanenet_detector():
         binaryImage = np.zeros_like(SobelOutput)
         binaryImage[(ColorOutput == 1) | (SobelOutput == 1)] = 1
 
-        # Remove noise from binary image
-        # binaryImage = morphology.remove_small_objects(binaryImage.astype('bool'), min_size=20, connectivity=2)
+
 
         binaryImage = binaryImage.astype('uint8')
         cv2.imwrite("cbi.png", binaryImage*255)
@@ -135,7 +155,6 @@ class lanenet_detector():
 
         # cv2.imshow("123", img)
         ####
-        
         controller = vehicleController()
         currState = controller.getModelState()
         curr_x, curr_y, curr_vel, curr_yaw = controller.extract_vehicle_info(
@@ -177,31 +196,14 @@ class lanenet_detector():
                     [180, 480],  # Lower left
                 ]
             )
-            
-            
-            # src = np.float32(
-            #     [
-            #         [240, 270],     # Upper left
-            #         [360, 270],   # Upper right
-            #         [410, 470],  # Lower right
-            #         [150, 470],  # Lower left
-            #     ]
-            # )
-            # dst = np.float32(
-            #     [
-            #         [0, 0],     # Upper left
-            #         [540, 0],   # Upper right
-            #         [450, 480],  # Lower right
-            #         [180, 480],  # Lower left
-            #     ]
-            # )
 
-        # 0830 transform
+        # Rosbag transform
+
         # src = np.float32(
         #     [
-        #         [320, 400],     # Upper left
-        #         [520, 400],   # Upper right
-        #         [540, 480], # Lower right
+        #         [400, 390],     # Upper left
+        #         [520, 390],   # Upper right
+        #         [640, 480], # Lower right
         #         [200, 480],  # Lower left
         #     ]
         # )
@@ -219,7 +221,7 @@ class lanenet_detector():
 
         warped_img = cv2.warpPerspective(
             img, M, img_size, flags=cv2.INTER_LINEAR)
-        cv2.imwrite("warp.png", warped_img*255)
+        # cv2.imwrite("warp.png", warped_img*255)
         if verbose:
             # If verbose is true, visualize the source and destination points on the original and warped images
             for i in range(4):
@@ -237,10 +239,12 @@ class lanenet_detector():
         binary_img = self.combinedBinaryImage(img)
         img_birdeye, M, Minv = self.perspective_transform(binary_img)
 
+        waypoints = create_waypoints(img_birdeye, curr_x)
 
         if not self.hist:
             # Fit lane without previous result
             ret = line_fit(img_birdeye, curr_x)
+            # waypoints = create_waypoints(img_birdeye, curr_x)
             left_fit = ret['left_fit']
             right_fit = ret['right_fit']
             nonzerox = ret['nonzerox']
@@ -252,6 +256,7 @@ class lanenet_detector():
             # Fit lane with previous result
             if not self.detected:
                 ret = line_fit(img_birdeye, curr_x)
+                # waypoints = create_waypoints(img_birdeye, curr_x)
 
                 if ret is not None:
                     left_fit = ret['left_fit']
@@ -285,16 +290,24 @@ class lanenet_detector():
                 else:
                     self.detected = False
 
-        # Annotate original image
-        bird_fit_img = None
-        combine_fit_img = None
-        if ret is not None:
-            bird_fit_img = bird_fit(img_birdeye, ret, save_file=None)
-            combine_fit_img = final_viz(img, left_fit, right_fit, Minv)
-        else:
-            print("Unable to detect lanes")
+            # Annotate original image
+            bird_fit_img = None
+            combine_fit_img = None
+            if ret is not None:
+                bird_fit_img = bird_fit(img_birdeye, ret, save_file=None)
+                combine_fit_img = final_viz(img, left_fit, right_fit, Minv)
+                
+                # Visualize waypoints
+                for waypoint in waypoints:
+                    x, y = waypoint  # Assuming waypoint is a tuple (x, y)
+                    # Transform (x, y) back to the perspective of the original image
+                    # x_trans, y_trans = cv2.perspectiveTransform(np.array([[[x, y]]]), Minv)[0][0]
+                    cv2.circle(combine_fit_img, (int(x), int(y)), 5, (0, 0, 255), -1)
+            else:
+                print("Unable to detect lanes")
 
-        return combine_fit_img, bird_fit_img
+            # return combine_fit_img, bird_fit_img
+            return combine_fit_img, bird_fit_img, waypoints
 
 
 if __name__ == '__main__':
