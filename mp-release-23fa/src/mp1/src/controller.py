@@ -78,7 +78,7 @@ class vehicleController():
         global curve
         ####################### TODO: Your TASK 2 code starts Here #######################
         if len(future_unreached_waypoints) < 2: # Make sure there's enough points to determine velocity
-            target_velocity = 3
+            target_velocity = 16
         
         else:
             p1 = future_unreached_waypoints[0]
@@ -92,12 +92,17 @@ class vehicleController():
             threshold = 0.12 
 
             if abs(d_theta) > threshold: # Check if we are on a curve and decrease target
-                target_velocity = 2
+                target_velocity = 3
                 curve = True
             else:
-                target_velocity = 3
+                target_velocity = 5
                 curve = False
-
+            
+            # Limit acceleration at start
+            # if curr_vel < 5:
+            #     target_velocity = 6
+            # elif curr_vel < 8:
+            #     target_velocity = 9
 
         ####################### TODO: Your TASK 2 code ends Here #######################
         return target_velocity
@@ -105,7 +110,7 @@ class vehicleController():
 
 
     # Task 3: Lateral Controller (Pure Pursuit)
-    def pure_pursuit_lateral_controller(self, curr_x, curr_y, curr_yaw, target_point, future_unreached_waypoints):
+    def pure_pursuit_lateral_controller(self, curr_x, curr_y, curr_yaw, future_unreached_waypoints):
 
         ####################### TODO: Your TASK 3 code starts Here #######################
         global curve
@@ -129,6 +134,7 @@ class vehicleController():
 
         # Pure pursuit equation
         target_steering = np.arctan(2*self.L*np.sin(alpha) / ld)
+        print(target_steering)
 
         self.x.append(curr_x)
         self.y.append(curr_y)
@@ -137,9 +143,7 @@ class vehicleController():
         ####################### TODO: Your TASK 3 code starts Here #######################
         return target_steering
 
-
-
-    def execute(self, currentPose, target_point, future_unreached_waypoints):
+    def execute_origin(self, currentPose, target_point, future_unreached_waypoints):
         # Compute the control input to the vehicle according to the
         # current and reference pose of the vehicle
         # Input:
@@ -158,6 +162,39 @@ class vehicleController():
 
         target_velocity = self.longititudal_controller(curr_x, curr_y, curr_vel, curr_yaw, future_unreached_waypoints)
         target_steering = self.pure_pursuit_lateral_controller(curr_x, curr_y, curr_yaw, target_point, future_unreached_waypoints)
+
+
+        #Pack computed velocity and steering angle into Ackermann command
+        newAckermannCmd = AckermannDrive()
+        newAckermannCmd.speed = target_velocity
+        newAckermannCmd.steering_angle = target_steering
+
+        # Publish the computed control input to vehicle model
+        self.controlPub.publish(newAckermannCmd)
+
+        self.prev_vel = curr_vel
+
+    def execute(self, currentPose, future_unreached_waypoints):
+        # Compute the control input to the vehicle according to the
+        # current and reference pose of the vehicle
+        # Input:
+        #   currentPose: ModelState, the current state of the vehicle
+        #   target_point: [target_x, target_y]
+        #   future_unreached_waypoints: a list of future waypoints[[target_x, target_y]]
+        # Output: None
+
+        curr_x, curr_y, curr_vel, curr_yaw = self.extract_vehicle_info(currentPose)
+        curr_x = 0
+        curr_y = 0
+        curr_yaw = 0
+        # Acceleration Profile
+        if self.log_acceleration:
+            acceleration = (curr_vel- self.prev_vel) * 100 # Since we are running in 100Hz
+
+        self.accelerations.append(acceleration)
+
+        target_velocity = self.longititudal_controller(curr_x, curr_y, curr_vel, curr_yaw, future_unreached_waypoints)
+        target_steering = self.pure_pursuit_lateral_controller(curr_x, curr_y, curr_yaw, future_unreached_waypoints)
 
 
         #Pack computed velocity and steering angle into Ackermann command
