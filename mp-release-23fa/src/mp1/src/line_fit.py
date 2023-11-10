@@ -66,9 +66,9 @@ def line_fit(binary_warped, x_pos):
         win_xright_high = rightx_current + margin
 
         # Draw the windows on the visualization image
-        cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), (255, 0, 0), 2)
+        cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), (0, 255, 0), 2)
         # cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), (0,255,0), 2)
-        cv2.rectangle(out_img, (win_xleft_low + 100, win_y_low), (win_xleft_high + 100, win_y_high), (255, 0, 0), 2)
+        cv2.rectangle(out_img, (win_xleft_low + 400, win_y_low), (win_xleft_high + 400, win_y_high), (0, 255, 0), 2)
 
         # Identify the nonzero pixels in x and y within the window
         good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) &
@@ -170,6 +170,9 @@ def create_waypoints(binary_warped, x_pos):
         # Identify window boundaries in x and y (and right and left)
         win_y_low = binary_warped.shape[0] - (window + 1) * window_height
         win_y_high = binary_warped.shape[0] - window * window_height
+
+        print("Image Size: ", binary_warped.shape)
+
         win_xleft_low = leftx_current - margin
         win_xleft_high = leftx_current + margin
         win_xright_low = rightx_current - margin
@@ -178,7 +181,7 @@ def create_waypoints(binary_warped, x_pos):
         # Draw the windows on the visualization image
         cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), (0, 255, 0), 2)
         # cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), (0,255,0), 2)
-        cv2.rectangle(out_img, (win_xleft_low + 100, win_y_low), (win_xleft_high + 100, win_y_high), (0, 255, 0), 2)
+        cv2.rectangle(out_img, (win_xleft_low + 400, win_y_low), (win_xleft_high + 400, win_y_high), (0, 255, 0), 2)
 
         # Identify the nonzero pixels in x and y within the window
         good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) &
@@ -211,11 +214,6 @@ def create_waypoints(binary_warped, x_pos):
     lefty = nonzeroy[left_lane_inds]
     rightx = nonzerox[left_lane_inds] + 400
     righty = nonzeroy[left_lane_inds]
-    # else:
-    #     leftx = nonzerox[right_lane_inds] - 400
-    #     lefty = nonzeroy[right_lane_inds]
-    #     rightx = nonzerox[right_lane_inds]
-    #     righty = nonzeroy[right_lane_inds]
 
 
     
@@ -235,12 +233,14 @@ def create_waypoints(binary_warped, x_pos):
         print("FLAG 3: Empty???------------------------------------")
         print(f"Error: {e}")
 
-    # print('data:')
-    # print(y_max)
-    # print(y_min)
+
+    print('data:')
+    print(y_max)
+    print(y_min)
+    print(y_half)
     
-    A = [0]
-    B = [0]
+    A = []
+    B = []
     for i in range(len(lefty)):
         if lefty[i] == y_min:
             A.append(leftx[i])
@@ -295,14 +295,9 @@ def tune_fit(binary_warped, left_fit, right_fit, x_pos):
     ## New-------------------------
     # if x_pos > -3:
     leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 400
-    righty = nonzeroy[left_lane_inds]
-    # else:
-    #     leftx = nonzerox[right_lane_inds] - 400
-    #     lefty = nonzeroy[right_lane_inds]
-    #     rightx = nonzerox[right_lane_inds]
-    #     righty = nonzeroy[right_lane_inds]
+    lefty = nonzeroy[left_lane_inds] - 400
+    rightx = nonzerox[right_lane_inds]
+    righty = nonzeroy[right_lane_inds]
 
     # If we don't find enough relevant points, return all None (this means error)
     min_inds = 10

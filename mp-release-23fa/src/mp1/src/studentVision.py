@@ -163,8 +163,8 @@ class lanenet_detector():
             currState)
         img_size = (img.shape[1], img.shape[0])
 
-        # gazebo warp
-        # if curr_x > -5:
+        # <gazebo warp>
+
         src = np.float32(
             [
                 [250, 290],     # Upper left
@@ -181,25 +181,27 @@ class lanenet_detector():
                 [220, 480],  # Lower left
             ]
         )
-        # else:
-        #     src = np.float32(
-        #         [
-        #             [320, 275],     # Upper left
-        #             [370, 275],   # Upper right
-        #             [460, 470],  # Lower right
-        #             [230, 470],  # Lower left
-        #         ]
-        #     )
-        #     dst = np.float32(
-        #         [
-        #             [0, 0],     # Upper left
-        #             [540, 0],   # Upper right
-        #             [450, 480],  # Lower right
-        #             [180, 480],  # Lower left
-        #         ]
-        #     )
 
-        # Rosbag transform
+        #Change: Jun
+
+        # src = np.float32(
+        #     [
+        #         [230, 290],     # Upper left
+        #         [350, 290],   # Upper right
+        #         [370, 470],  # Lower right
+        #         [130, 470],  # Lower left
+        #     ]
+        # )
+        # dst = np.float32(
+        #     [
+        #         [0, 0],     # Upper left
+        #         [540, 0],   # Upper right
+        #         [450, 480],  # Lower right
+        #         [220, 480],  # Lower left
+        #     ]
+        # )
+      
+        # <Rosbag transform>
 
         # src = np.float32(
         #     [
@@ -300,12 +302,12 @@ class lanenet_detector():
                 combine_fit_img = final_viz(img, left_fit, right_fit, Minv)
                 
                 # Visualize waypoints
-                for waypoint in waypoints:
-                    x, y = waypoint  # Assuming waypoint is a tuple (x, y)
-                    # Transform (x, y) back to the perspective of the original image
-                    # x_trans, y_trans = cv2.perspectiveTransform(np.array([[[x, y]]]), Minv)[0][0]
-                    cv2.circle(bird_fit_img, (int(x), int(y)), 5, (0, 0, 255), -1)
-                    cv2.circle(bird_fit_img, (320, 480), 5, (235, 235, 52), -1)
+                # for waypoint in waypoints:
+                x, y = waypoints[1]  # Assuming waypoint is a tuple (x, y)
+                # Transform (x, y) back to the perspective of the original image
+                # x_trans, y_trans = cv2.perspectiveTransform(np.array([[[x, y]]]), Minv)[0][0]
+                cv2.circle(bird_fit_img, (int(x), int(y)), 5, (0, 0, 255), -1)
+                cv2.circle(bird_fit_img, (380, 480), 5, (235, 235, 52), -1)
             else:
                 print("Unable to detect lanes")
 

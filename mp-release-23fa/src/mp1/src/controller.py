@@ -29,12 +29,16 @@ class vehicleController():
         # Publisher to publish the control input to the vehicle model
         self.controlPub = rospy.Publisher("/ackermann_cmd", AckermannDrive, queue_size = 1)
         self.prev_vel = 0
-        self.L = 1.75 # Wheelbase, can be get from gem_control.py
+        self.L = 65 # Wheelbase, can be get from gem_control.py
         self.log_acceleration = True
         self.accelerations = []
         self.x = []
         self.y = []
+        self.fix_x = 380
+        self.fix_y = 480
+        self.fix_yaw = np.pi/2
 
+        
 
     def getModelState(self):
         # Get the current state of the vehicle
@@ -58,15 +62,19 @@ class vehicleController():
     # Hint: you may use the the helper function(quaternion_to_euler()) we provide to convert from quaternion to euler
     def extract_vehicle_info(self, currentPose):
 
-        pos_x, pos_y, vel, yaw = 0, 0, 0, 0
+        # pos_x, pos_y, vel, yaw = 0, 0, 0, 0
 
         # Extract x and y pos, calculate velocity and yaw
-        pos_x = currentPose.pose.position.x
-        pos_y = currentPose.pose.position.y
+        # pos_x = currentPose.pose.position.x
+        # pos_y = currentPose.pose.position.y
         vel = math.sqrt(currentPose.twist.linear.x**2+currentPose.twist.linear.y**2)
-        euler_angles = quaternion_to_euler(currentPose.pose.orientation.x, currentPose.pose.orientation.y, currentPose.pose.orientation.z, currentPose.pose.orientation.w)
-        yaw = euler_angles[2]
+        # euler_angles = quaternion_to_euler(currentPose.pose.orientation.x, currentPose.pose.orientation.y, currentPose.pose.orientation.z, currentPose.pose.orientation.w)
+        # yaw = euler_angles[2]
                 
+        pos_x = self.fix_x
+        pos_y = self.fix_y
+        yaw = self.fix_yaw
+        
 
         return pos_x, pos_y, vel, yaw # note that yaw is in radian
 
@@ -78,7 +86,7 @@ class vehicleController():
         global curve
         ####################### TODO: Your TASK 2 code starts Here #######################
         if len(future_unreached_waypoints) < 2: # Make sure there's enough points to determine velocity
-            target_velocity = 1
+            target_velocity = 2
         
         else:
             p1 = future_unreached_waypoints[0]
@@ -92,10 +100,10 @@ class vehicleController():
             threshold = 0.12 
 
             if abs(d_theta) > threshold: # Check if we are on a curve and decrease target
-                target_velocity = 0.5
+                target_velocity = 2
                 curve = True
             else:
-                target_velocity = 1
+                target_velocity = 2
                 curve = False
             
             # Limit acceleration at start
@@ -126,24 +134,24 @@ class vehicleController():
         #     except IndexError:
         #         lookahead = future_unreached_waypoints[0]
         
-        lookahead = future_unreached_waypoints[0]
+        lookahead = future_unreached_waypoints[1]
 
-        curr_x = 250
-        curr_y = 480
-        curr_yaw = 0
+        curr_x = self.fix_x
+        curr_y = self.fix_y
+        curr_yaw = self.fix_yaw
         # Distance between lookahead point and current position        
         ld = math.sqrt((lookahead[0] - curr_x)**2 + (lookahead[1] - curr_y)**2)
 
         # Find angle car is rotated away from lookahead
-        alpha = np.arctan2(lookahead[1] - curr_y, lookahead[0] - curr_x) - curr_yaw
+        alpha = np.arctan2( -lookahead[1] + curr_y, lookahead[0] - curr_x) - curr_yaw
 
         # Pure pursuit equation
-        target_steering = 30 * np.arctan(2*self.L*np.sin(alpha) / ld)
-
-        print(target_steering* 180/math.pi)
+        target_steering = np.arctan(2*self.L*np.sin(alpha) / ld)
         
-        self.x.append(curr_x)
-        self.y.append(curr_y)
+        print('alpha: ', alpha*180/np.pi, '   steering: ', target_steering* 180/np.pi)
+        
+        # self.x.append(curr_x)
+        # self.y.append(curr_y)
 
 
         ####################### TODO: Your TASK 3 code starts Here #######################
@@ -159,6 +167,10 @@ class vehicleController():
         # Output: None
 
         curr_x, curr_y, curr_vel, curr_yaw = self.extract_vehicle_info(currentPose)
+
+        curr_x = self.x_fix
+        curr_y = self.y_fix
+        curr_yaw = self.y_yaw
 
         # Acceleration Profile
         if self.log_acceleration:
@@ -190,9 +202,9 @@ class vehicleController():
         # Output: None
 
         curr_x, curr_y, curr_vel, curr_yaw = self.extract_vehicle_info(currentPose)
-        curr_x = 250
-        curr_y = 480
-        curr_yaw = 0
+        curr_x = self.fix_x
+        curr_y = self.fix_y
+        curr_yaw = self.fix_yaw
         # Acceleration Profile
         if self.log_acceleration:
             acceleration = (curr_vel- self.prev_vel) * 100 # Since we are running in 100Hz
