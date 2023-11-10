@@ -4,25 +4,13 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import pickle
 
-# feel free to adjust the parameters in the code if necessary
-
 global leftx
 global lefty
 global rightx
 global righty
 
 
-# class lineFit():
-
-    # def __init__(self):
-    #     self.leftx = []
-    #     self.lefty = []
-    #     self.rightx = []
-    #     self.righty = []
-    #     self.waypoint1 = []
-    #     self.waypoint2 = []
-
-def line_fit(binary_warped, x_pos):
+def line_fit(binary_warped, curr_x, yp):
     """
     Find and fit lane lines
     """
@@ -95,14 +83,33 @@ def line_fit(binary_warped, x_pos):
     global lefty
     global rightx
     global righty
+    
+    if yp > np.pi:
+        yp = yp - 2* np.pi
+    elif yp < -np.pi:
+        yp = yp + 2*np.pi
+    else:
+        yp = yp
+    
+    
+    if (curr_x < -6 and curr_x > -15) and yp < abs(0.5):
+        leftx = nonzerox[right_lane_inds] - 500
+        lefty = nonzeroy[right_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+    else:
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[left_lane_inds] + 500
+        righty = nonzeroy[left_lane_inds]
 
-    # if x_pos > -3:
-    leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 500
-    righty = nonzeroy[left_lane_inds]
+    # if x_pos > -6:
+    #     leftx = nonzerox[left_lane_inds]
+    #     lefty = nonzeroy[left_lane_inds]
+    #     rightx = nonzerox[left_lane_inds] + 500
+    #     righty = nonzeroy[left_lane_inds]
     # else:
-    #     leftx = nonzerox[right_lane_inds] - 400
+    #     leftx = nonzerox[right_lane_inds] - 500
     #     lefty = nonzeroy[right_lane_inds]
     #     rightx = nonzerox[right_lane_inds]
     #     righty = nonzeroy[right_lane_inds]
@@ -132,7 +139,7 @@ def line_fit(binary_warped, x_pos):
 
     return ret
 
-def create_waypoints(binary_warped, x_pos):
+def create_waypoints(binary_warped, curr_x, yp):
     """
     Find and fit lane lines
     """
@@ -208,13 +215,38 @@ def create_waypoints(binary_warped, x_pos):
     global lefty
     global rightx
     global righty
+    
+    if yp > np.pi:
+        yp = yp - 2* np.pi
+    elif yp < -np.pi:
+        yp = yp + 2*np.pi
+    else:
+        yp = yp
 
-    # if x_pos > -3:
-    leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 500
-    righty = nonzeroy[left_lane_inds]
+    if (curr_x < -6 and curr_x > -15) and yp < abs(0.5):
+        leftx = nonzerox[right_lane_inds] - 500
+        lefty = nonzeroy[right_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+    else:
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[left_lane_inds] + 500
+        righty = nonzeroy[left_lane_inds]
+        
+        
+        
 
+    # if x_pos > -6:
+    #     leftx = nonzerox[left_lane_inds]
+    #     lefty = nonzeroy[left_lane_inds]
+    #     rightx = nonzerox[left_lane_inds] + 500
+    #     righty = nonzeroy[left_lane_inds]
+    # else:
+    #     leftx = nonzerox[right_lane_inds] - 500
+    #     lefty = nonzeroy[right_lane_inds]
+    #     rightx = nonzerox[right_lane_inds]
+    #     righty = nonzeroy[right_lane_inds]
 
     
     try:
@@ -262,7 +294,7 @@ def create_waypoints(binary_warped, x_pos):
 
     return [waypoint1, waypoint2]
 
-def tune_fit(binary_warped, left_fit, right_fit, x_pos):
+def tune_fit(binary_warped, left_fit, right_fit, curr_x, yp):
     """
     Given a previously fit line, quickly try to find the line based on previous lines
     """
@@ -293,11 +325,34 @@ def tune_fit(binary_warped, left_fit, right_fit, x_pos):
     # righty = nonzeroy[right_lane_inds]
 
     ## New-------------------------
-    # if x_pos > -3:
-    leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 500
-    righty = nonzeroy[left_lane_inds]
+    
+    if yp > np.pi:
+        yp = yp - 2* np.pi
+    elif yp < -np.pi:
+        yp = yp + 2*np.pi
+    else:
+        yp = yp
+        
+    if (curr_x < -6 and curr_x > -15) and yp < abs(0.5):
+        leftx = nonzerox[right_lane_inds] - 500
+        lefty = nonzeroy[right_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+    else:
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[left_lane_inds] + 500
+        righty = nonzeroy[left_lane_inds]
+    # if x_pos > -6:
+    #     leftx = nonzerox[left_lane_inds]
+    #     lefty = nonzeroy[left_lane_inds]
+    #     rightx = nonzerox[left_lane_inds] + 500
+    #     righty = nonzeroy[left_lane_inds]
+    # else:
+    #     leftx = nonzerox[right_lane_inds] - 500
+    #     lefty = nonzeroy[right_lane_inds]
+    #     rightx = nonzerox[right_lane_inds]
+    #     righty = nonzeroy[right_lane_inds]
 
 
     # If we don't find enough relevant points, return all None (this means error)
