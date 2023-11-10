@@ -96,16 +96,16 @@ def line_fit(binary_warped, x_pos):
     global rightx
     global righty
 
-    if x_pos > -3:
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds]
-        rightx = nonzerox[left_lane_inds] + 400
-        righty = nonzeroy[left_lane_inds]
-    else:
-        leftx = nonzerox[right_lane_inds] - 400
-        lefty = nonzeroy[right_lane_inds]
-        rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds]
+    # if x_pos > -3:
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds]
+    rightx = nonzerox[left_lane_inds] + 400
+    righty = nonzeroy[left_lane_inds]
+    # else:
+    #     leftx = nonzerox[right_lane_inds] - 400
+    #     lefty = nonzeroy[right_lane_inds]
+    #     rightx = nonzerox[right_lane_inds]
+    #     righty = nonzeroy[right_lane_inds]
 
 
     # Fit a second order polynomial to each using np.polyfit()
@@ -206,16 +206,16 @@ def create_waypoints(binary_warped, x_pos):
     global rightx
     global righty
 
-    if x_pos > -3:
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds]
-        rightx = nonzerox[left_lane_inds] + 400
-        righty = nonzeroy[left_lane_inds]
-    else:
-        leftx = nonzerox[right_lane_inds] - 400
-        lefty = nonzeroy[right_lane_inds]
-        rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds]
+    # if x_pos > -3:
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds]
+    rightx = nonzerox[left_lane_inds] + 400
+    righty = nonzeroy[left_lane_inds]
+    # else:
+    #     leftx = nonzerox[right_lane_inds] - 400
+    #     lefty = nonzeroy[right_lane_inds]
+    #     rightx = nonzerox[right_lane_inds]
+    #     righty = nonzeroy[right_lane_inds]
 
 
     
@@ -234,7 +234,6 @@ def create_waypoints(binary_warped, x_pos):
     # This could happen if the lists are empty or have invalid data
         print("FLAG 3: Empty???------------------------------------")
         print(f"Error: {e}")
-
 
     # print('data:')
     # print(y_max)
@@ -259,18 +258,7 @@ def create_waypoints(binary_warped, x_pos):
     x_half = sum(B) // len(B)
 
     waypoint1 = [x_half, y_half]
-    waypoint2 = [x_max, y_half]
-        
-    # Draw the waypoints on the output image
-    radius = 50  # radius of the waypoints
-    color = (255, 0, 0)  # color of the waypoints (Blue in this case)
-    thickness = -1  # fill the circle
-
-    # Draw waypoint1
-    cv2.circle(out_img, (waypoint1[0], waypoint1[1]), radius, color, thickness)
-
-    # Draw waypoint2
-    cv2.circle(out_img, (waypoint2[0], waypoint2[1]), radius, color, thickness)
+    waypoint2 = [x_max, y_min]
 
     return [waypoint1, waypoint2]
 
@@ -305,16 +293,16 @@ def tune_fit(binary_warped, left_fit, right_fit, x_pos):
     # righty = nonzeroy[right_lane_inds]
 
     ## New-------------------------
-    if x_pos > -3:
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds]
-        rightx = nonzerox[left_lane_inds] + 400
-        righty = nonzeroy[left_lane_inds]
-    else:
-        leftx = nonzerox[right_lane_inds] - 400
-        lefty = nonzeroy[right_lane_inds]
-        rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds]
+    # if x_pos > -3:
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds]
+    rightx = nonzerox[left_lane_inds] + 400
+    righty = nonzeroy[left_lane_inds]
+    # else:
+    #     leftx = nonzerox[right_lane_inds] - 400
+    #     lefty = nonzeroy[right_lane_inds]
+    #     rightx = nonzerox[right_lane_inds]
+    #     righty = nonzeroy[right_lane_inds]
 
     # If we don't find enough relevant points, return all None (this means error)
     min_inds = 10

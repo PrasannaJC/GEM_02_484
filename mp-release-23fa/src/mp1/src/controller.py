@@ -10,8 +10,6 @@ import math
 from util import euler_to_quaternion, quaternion_to_euler
 import matplotlib.pyplot as plt
 
-
-
 import time
 
 def func1(t, vars, vr, delta):
@@ -80,7 +78,7 @@ class vehicleController():
         global curve
         ####################### TODO: Your TASK 2 code starts Here #######################
         if len(future_unreached_waypoints) < 2: # Make sure there's enough points to determine velocity
-            target_velocity = 16
+            target_velocity = 1
         
         else:
             p1 = future_unreached_waypoints[0]
@@ -94,10 +92,10 @@ class vehicleController():
             threshold = 0.12 
 
             if abs(d_theta) > threshold: # Check if we are on a curve and decrease target
-                target_velocity = 3
+                target_velocity = 0.5
                 curve = True
             else:
-                target_velocity = 5
+                target_velocity = 1
                 curve = False
             
             # Limit acceleration at start
@@ -118,16 +116,21 @@ class vehicleController():
         global curve
 
         # If we are on a curve, lookahead distance is close for sharp turns
-        if curve:
-            lookahead = future_unreached_waypoints[0]
+        # if curve:
+        #     lookahead = future_unreached_waypoints[0]
         
-        # If we aren't on a curve, use a deeper point to prevent unnecessary zig-zag
-        else:
-            try: # Make sure there's enough waypoints
-                lookahead = future_unreached_waypoints[1]
-            except IndexError:
-                lookahead = future_unreached_waypoints[0]
+        # # If we aren't on a curve, use a deeper point to prevent unnecessary zig-zag
+        # else:
+        #     try: # Make sure there's enough waypoints
+        #         lookahead = future_unreached_waypoints[1]
+        #     except IndexError:
+        #         lookahead = future_unreached_waypoints[0]
+        
+        lookahead = future_unreached_waypoints[0]
 
+        curr_x = 250
+        curr_y = 480
+        curr_yaw = 0
         # Distance between lookahead point and current position        
         ld = math.sqrt((lookahead[0] - curr_x)**2 + (lookahead[1] - curr_y)**2)
 
@@ -135,9 +138,10 @@ class vehicleController():
         alpha = np.arctan2(lookahead[1] - curr_y, lookahead[0] - curr_x) - curr_yaw
 
         # Pure pursuit equation
-        target_steering = np.arctan(2*self.L*np.sin(alpha) / ld)
-        print(target_steering)
+        target_steering = 30 * np.arctan(2*self.L*np.sin(alpha) / ld)
 
+        print(target_steering* 180/math.pi)
+        
         self.x.append(curr_x)
         self.y.append(curr_y)
 
@@ -186,8 +190,8 @@ class vehicleController():
         # Output: None
 
         curr_x, curr_y, curr_vel, curr_yaw = self.extract_vehicle_info(currentPose)
-        curr_x = 0
-        curr_y = 0
+        curr_x = 250
+        curr_y = 480
         curr_yaw = 0
         # Acceleration Profile
         if self.log_acceleration:
