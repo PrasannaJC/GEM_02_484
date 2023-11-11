@@ -23,16 +23,16 @@ class lanenet_detector():
         self.bridge = CvBridge()
         # NOTE
         # Uncomment this line for lane detection of GEM car in Gazebo
-        self.sub_image = rospy.Subscriber(
-            '/gem/front_single_camera/front_single_camera/image_raw', Image, self.img_callback, queue_size=1)
+        # self.sub_image = rospy.Subscriber(
+        #     '/gem/front_single_camera/front_single_camera/image_raw', Image, self.img_callback, queue_size=1)
         # rosbag
-        # self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
-        self.pub_image = rospy.Publisher(
-            "lane_detection/annotate", Image, queue_size=1)
+        self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
+        
+        self.pub_image = rospy.Publisher('/lane_detection/annotate', Image, queue_size=1)
+
         self.pub_bird = rospy.Publisher(
-            "lane_detection/birdseye", Image, queue_size=1)
-        self.pub_waypoints = rospy.Publisher(
-            'chatter', Float32MultiArray, queue_size=10)
+            "/lane_detection/birdseye", Image, queue_size=1)
+        self.pub_waypoints = rospy.Publisher( 'chatter', Float32MultiArray, queue_size=10)
     
         self.left_line = Line(n=5)
         self.right_line = Line(n=5)
@@ -44,14 +44,19 @@ class lanenet_detector():
         try:
             # Convert a ROS image message into an OpenCV image
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            print('Flag 1 ------------------')
         except CvBridgeError as e:
             print(e)
 
+        print('Flag 2 ========================================')
         raw_img = cv_image.copy()
+
+        print('Flag3 --------------------------------------------')
         # mask_image, bird_image = self.detection(raw_img)
         mask_image, bird_image, waypoints = self.detection(raw_img)
 
-        # print('-----------------------------------------------')
+        print('Flag 4 ================================================')
+       
         # print('waypoints', waypoints)
 
         if mask_image is not None and bird_image is not None:
@@ -61,6 +66,7 @@ class lanenet_detector():
 
             # Publish image message in ROS
             self.pub_image.publish(out_img_msg)
+       
             self.pub_bird.publish(out_bird_msg)
 
             msg = Float32MultiArray()
@@ -183,49 +189,49 @@ class lanenet_detector():
         
         # Switch from left to right
         
-        if yp > np.pi:
-            yp = yp - 2* np.pi
-        elif yp < -np.pi:
-            yp = yp + 2*np.pi
-        else:
-            yp = yp
-        if not((curr_x < -6 and curr_x > -15) and yp < abs(0.5)):
-            print('left')
-            src = np.float32(
-                [
-                    [220, 320],     # Upper left
-                    [310, 320],   # Upper right
-                    [350, 470],  # Lower right
-                    [150, 470],  # Lower left
-                ]
-            )
-            dst = np.float32(
-                [
-                    [0, 0],     # Upper left
-                    [540, 0],   # Upper right
-                    [450, 480],  # Lower right
-                    [220, 480],  # Lower left
-                ]
-            )
-        else:
+        # if yp > np.pi:
+        #     yp = yp - 2* np.pi
+        # elif yp < -np.pi:
+        #     yp = yp + 2*np.pi
+        # else:
+        #     yp = yp
+        # if not((curr_x < -6 and curr_x > -15) and yp < abs(0.5)):
+        #     print('left')
+        #     src = np.float32(
+        #         [
+        #             [220, 320],     # Upper left
+        #             [310, 320],   # Upper right
+        #             [350, 470],  # Lower right
+        #             [150, 470],  # Lower left
+        #         ]
+        #     )
+        #     dst = np.float32(
+        #         [
+        #             [0, 0],     # Upper left
+        #             [540, 0],   # Upper right
+        #             [450, 480],  # Lower right
+        #             [220, 480],  # Lower left
+        #         ]
+        #     )
+        # else:
 
-            print('right')
-            src = np.float32(
-                [
-                    [300, 260],     # Upper left
-                    [360, 260],   # Upper right
-                    [460, 470],  # Lower right
-                    [230, 470],  # Lower left
-                ]
-            )
-            dst = np.float32(
-                [
-                    [0, 0],     # Upper left
-                    [540, 0],   # Upper right
-                    [450, 480],  # Lower right
-                    [180, 480],  # Lower left
-                ]
-            )
+        #     print('right')
+        #     src = np.float32(
+        #         [
+        #             [300, 260],     # Upper left
+        #             [360, 260],   # Upper right
+        #             [460, 470],  # Lower right
+        #             [230, 470],  # Lower left
+        #         ]
+        #     )
+        #     dst = np.float32(
+        #         [
+        #             [0, 0],     # Upper left
+        #             [540, 0],   # Upper right
+        #             [450, 480],  # Lower right
+        #             [180, 480],  # Lower left
+        #         ]
+        #     )
             # src = np.float32(
             #     [
             #         [220, 320],     # Upper left
@@ -247,22 +253,22 @@ class lanenet_detector():
       
         # <Rosbag transform>
 
-        # src = np.float32(
-        #     [
-        #         [400, 390],     # Upper left
-        #         [520, 390],   # Upper right
-        #         [640, 480], # Lower right
-        #         [200, 480],  # Lower left
-        #     ]
-        # )
-        # dst = np.float32(
-        #     [
-        #         [0, 0],     # Upper left
-        #         [640, 0],   # Upper right
-        #         [640, 480], # Lower right
-        #         [0, 480],  # Lower left
-        #     ]
-        # )
+        src = np.float32(
+            [
+                [500, 450],     # Upper left
+                [780, 450],   # Upper right
+                [1080, 700], # Lower right
+                [0, 700],  # Lower left
+            ]
+        )
+        dst = np.float32(
+            [
+                [0, 0],     # Upper left
+                [1280, 0],   # Upper right
+                [1280, 720], # Lower right
+                [0, 720],  # Lower left
+            ]
+        )
 
         M = cv2.getPerspectiveTransform(src, dst)
         Minv = cv2.getPerspectiveTransform(dst, src)
@@ -301,7 +307,7 @@ class lanenet_detector():
             right_lane_inds = ret['right_lane_inds']
 
         else:
-            # Fit lane with previous result
+            # Fit lane with pr    waypoint1 = [x_half, y_half]evious result
             if not self.detected:
                 ret = line_fit(img_birdeye, curr_x, yp)
                 # waypoints = create_waypoints(img_birdeye, curr_x)

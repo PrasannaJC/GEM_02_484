@@ -285,9 +285,13 @@ def create_waypoints(binary_warped, curr_x, yp):
 
         if righty[i] == y_half:
             B.append(rightx[i])
+    try:
+        x_max = sum(A) // len(A)
+        x_half = sum(B) // len(B)
 
-    x_max = sum(A) // len(A)
-    x_half = sum(B) // len(B)
+    except:
+        x_max = 640
+        x_half = 640
 
     waypoint1 = [x_half, y_half]
     waypoint2 = [x_max, y_min]

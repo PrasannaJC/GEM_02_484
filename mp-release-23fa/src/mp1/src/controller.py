@@ -30,13 +30,16 @@ class vehicleController():
         # Publisher to publish the control input to the vehicle model
         self.controlPub = rospy.Publisher("/ackermann_cmd", AckermannDrive, queue_size = 1)
         self.prev_vel = 0
-        self.L = 65 # Wheelbase, can be get from gem_control.py
+        # self.L = 65 # Wheelbase, can be get from gem_control.py
+        self.L = 97
         self.log_acceleration = True
         self.accelerations = []
         self.x = []
         self.y = []
-        self.fix_x = 380
-        self.fix_y = 480
+        # self.fix_x = 380
+        # self.fix_y = 480
+        self.fix_x = 640
+        self.fix_y = 720
         self.fix_yaw = np.pi/2
 
         
@@ -116,47 +119,40 @@ class vehicleController():
         alpha = np.arctan2( -lookahead[1] + curr_y, lookahead[0] - curr_x) - curr_yaw
 
         # Pure pursuit equation
-        target_steering = np.arctan(2*self.L*np.sin(alpha) / ld)
-        if abs(target_steering) > 0.1:
+        f_angle = np.arctan(2*self.L*np.sin(alpha) / ld)
+        if abs(f_angle) > 0.1:
             curve = True
         else:
             curve = False
                     
         # print('alpha: ', alpha*180/np.pi, '   steering: ', target_steering* 180/np.pi)
+
+        f_angle = f_angle/np.pi*180
         
+        if(f_angle > 35):
+            f_angle = 35
+        if (f_angle < -35):
+            f_angle = -35
+        if (f_angle > 0):
+            steer_angle = round(-0.1084*f_angle**2 + 21.775*f_angle, 2)
+        elif (f_angle < 0):
+            f_angle = -f_angle
+            steer_angle = -round(-0.1084*f_angle**2 + 21.775*f_angle, 2)
+        else:
+            steer_angle = 0.0
 
-
-        return target_steering, curve
+        return steer_angle, curve
     
     def longititudal_controller(self, curr_x, curr_y, curr_vel, curr_yaw, future_unreached_waypoints, curve):
 
-        # if len(future_unreached_waypoints) < 2: # Make sure there's enough points to determine velocity
-        #     target_velocity = 3
-        
-        # else:
-        #     p1 = future_unreached_waypoints[0]
-        #     p2 = future_unreached_waypoints[1]
-
-        #     # Calculate difference between angle of waypoints and current yaw to determine if we are on a curve
-        #     d_theta = np.arctan2(p2[1] - p1[1], p2[0] - p1[0]) - curr_yaw
-        #     d_theta = np.arctan2(np.sin(d_theta), np.cos(d_theta))
-            
-        #     # Difference in angle(radians) to signify a curve (tunable parameter)
-        #     threshold = 0.12 
-
-        #     if abs(d_theta) > threshold: # Check if we are on a curve and decrease target
-        #         target_velocity = 2
-        #         curve = True
-        #     else:
-        #         target_velocity = 5
-        #         curve = False
-        
         if curve:
             target_velocity = 2
         else:
             target_velocity = 5
+
+        target_velocity = 20
         print(target_velocity)
-                    
+
 
         return target_velocity
 
