@@ -1,8 +1,6 @@
 import rospy
 import numpy as np
 import argparse
-
-from gazebo_msgs.msg import  ModelState
 from controller import vehicleController
 import time
 from waypoint_list import WayPoints
@@ -47,13 +45,9 @@ class ControllerNode:
 
         while not rospy.is_shutdown():
             rate.sleep()  
-
-            currState = self.controller.getModelState()
-            if not currState.success:
-                continue
-
+            
             if self.waypoints is not None:
-                self.controller.execute(currState, self.waypoints)
+                self.controller.execute(self.waypoints)
 
     def start(self):
         self.run_model()
@@ -64,45 +58,4 @@ if __name__ == "__main__":
         node.start()
     except rospy.exceptions.ROSInterruptException:
         rospy.loginfo("Shutting down")
-
-
-# def callback_function(msg):
-#     data = msg.data
-#     waypoints = [[data[0], data[1]] , [data[2], data[3]]] 
-#     run_model(waypoints)
-
-# def run_model(waypoints):
-#     controller = vehicleController()
-
-#     def shutdown():
-#         """Stop the car when this ROS node shuts down"""
-#         controller.stop()
-#         rospy.loginfo("Stop the car")
-
-#     rospy.on_shutdown(shutdown)
-
-#     rate = rospy.Rate(100)  # 100 Hz
-#     rospy.sleep(0.0)
-#     start_time = rospy.Time.now()
-#     prev_wp_time = start_time
-
-#     while not rospy.is_shutdown():
-#         rate.sleep()  
-#         currState =  controller.getModelState()
-#         if not currState.success:
-#             continue
-        
-#         print(waypoints)
-#         controller.execute(currState, waypoints)
-
-# def main():
-#     rospy.init_node('main_node')
-#     rospy.Subscriber('chatter', Float32MultiArray, callback_function)
-#     rospy.spin()
-
-# if __name__ == "__main__":
-#     try:
-#         main()
-#     except rospy.exceptions.ROSInterruptException:
-#         rospy.loginfo("Shutting down")
 

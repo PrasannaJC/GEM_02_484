@@ -10,7 +10,7 @@ global rightx
 global righty
 
 
-def line_fit(binary_warped, curr_x, yp):
+def line_fit(binary_warped):
     """
     Find and fit lane lines
     """
@@ -84,35 +84,11 @@ def line_fit(binary_warped, curr_x, yp):
     global rightx
     global righty
     
-    if yp > np.pi:
-        yp = yp - 2* np.pi
-    elif yp < -np.pi:
-        yp = yp + 2*np.pi
-    else:
-        yp = yp
     
-    
-    if (curr_x < -6 and curr_x > -15) and yp < abs(0.5):
-        leftx = nonzerox[right_lane_inds] - 500
-        lefty = nonzeroy[right_lane_inds]
-        rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds]
-    else:
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds]
-        rightx = nonzerox[left_lane_inds] + 500
-        righty = nonzeroy[left_lane_inds]
-
-    # if x_pos > -6:
-    #     leftx = nonzerox[left_lane_inds]
-    #     lefty = nonzeroy[left_lane_inds]
-    #     rightx = nonzerox[left_lane_inds] + 500
-    #     righty = nonzeroy[left_lane_inds]
-    # else:
-    #     leftx = nonzerox[right_lane_inds] - 500
-    #     lefty = nonzeroy[right_lane_inds]
-    #     rightx = nonzerox[right_lane_inds]
-    #     righty = nonzeroy[right_lane_inds]
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds]
+    rightx = nonzerox[left_lane_inds] + 500
+    righty = nonzeroy[left_lane_inds]
 
 
     # Fit a second order polynomial to each using np.polyfit()
@@ -139,7 +115,7 @@ def line_fit(binary_warped, curr_x, yp):
 
     return ret
 
-def create_waypoints(binary_warped, curr_x, yp):
+def create_waypoints(binary_warped):
     """
     Find and fit lane lines
     """
@@ -216,37 +192,13 @@ def create_waypoints(binary_warped, curr_x, yp):
     global rightx
     global righty
     
-    if yp > np.pi:
-        yp = yp - 2* np.pi
-    elif yp < -np.pi:
-        yp = yp + 2*np.pi
-    else:
-        yp = yp
 
-    if (curr_x < -6 and curr_x > -15) and yp < abs(0.5):
-        leftx = nonzerox[right_lane_inds] - 500
-        lefty = nonzeroy[right_lane_inds]
-        rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds]
-    else:
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds]
-        rightx = nonzerox[left_lane_inds] + 500
-        righty = nonzeroy[left_lane_inds]
-        
-        
-        
 
-    # if x_pos > -6:
-    #     leftx = nonzerox[left_lane_inds]
-    #     lefty = nonzeroy[left_lane_inds]
-    #     rightx = nonzerox[left_lane_inds] + 500
-    #     righty = nonzeroy[left_lane_inds]
-    # else:
-    #     leftx = nonzerox[right_lane_inds] - 500
-    #     lefty = nonzeroy[right_lane_inds]
-    #     rightx = nonzerox[right_lane_inds]
-    #     righty = nonzeroy[right_lane_inds]
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds]
+    rightx = nonzerox[left_lane_inds] + 500
+    righty = nonzeroy[left_lane_inds]
+        
 
     
     try:
@@ -298,7 +250,7 @@ def create_waypoints(binary_warped, curr_x, yp):
 
     return [waypoint1, waypoint2]
 
-def tune_fit(binary_warped, left_fit, right_fit, curr_x, yp):
+def tune_fit(binary_warped, left_fit, right_fit):
     """
     Given a previously fit line, quickly try to find the line based on previous lines
     """
@@ -321,42 +273,12 @@ def tune_fit(binary_warped, left_fit, right_fit, curr_x, yp):
     right_lane_inds = (
             (nonzerox > (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] - margin)) & (
             nonzerox < (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] + margin)))
-    ## Original------------------------
-    # Again, extract left and right line pixel positions
-    # leftx = nonzerox[left_lane_inds]
-    # lefty = nonzeroy[left_lane_inds]
-    # rightx = nonzerox[right_lane_inds]
-    # righty = nonzeroy[right_lane_inds]
 
-    ## New-------------------------
-    
-    if yp > np.pi:
-        yp = yp - 2* np.pi
-    elif yp < -np.pi:
-        yp = yp + 2*np.pi
-    else:
-        yp = yp
         
-    if (curr_x < -6 and curr_x > -15) and yp < abs(0.5):
-        leftx = nonzerox[right_lane_inds] - 500
-        lefty = nonzeroy[right_lane_inds]
-        rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds]
-    else:
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds]
-        rightx = nonzerox[left_lane_inds] + 500
-        righty = nonzeroy[left_lane_inds]
-    # if x_pos > -6:
-    #     leftx = nonzerox[left_lane_inds]
-    #     lefty = nonzeroy[left_lane_inds]
-    #     rightx = nonzerox[left_lane_inds] + 500
-    #     righty = nonzeroy[left_lane_inds]
-    # else:
-    #     leftx = nonzerox[right_lane_inds] - 500
-    #     lefty = nonzeroy[right_lane_inds]
-    #     rightx = nonzerox[right_lane_inds]
-    #     righty = nonzeroy[right_lane_inds]
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds]
+    rightx = nonzerox[left_lane_inds] + 500
+    righty = nonzeroy[left_lane_inds]
 
 
     # If we don't find enough relevant points, return all None (this means error)
