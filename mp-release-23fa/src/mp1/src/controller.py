@@ -1,7 +1,6 @@
 import rospy
 from gazebo_msgs.srv import GetModelState, GetModelStateResponse
 from gazebo_msgs.msg import ModelState
-from ackermann_msgs.msg import AckermannDrive
 import numpy as np
 from scipy.integrate import ode
 from std_msgs.msg import Float32MultiArray
@@ -100,7 +99,6 @@ class vehicleController():
 
     def __init__(self):
         # Publisher to publish the control input to the vehicle model
-        self.controlPub = rospy.Publisher("/ackermann_cmd", AckermannDrive, queue_size = 1)
         self.prev_vel = 0
         # self.L = 65 # Wheelbase, can be get from gem_control.py
         self.L = 97
@@ -300,15 +298,6 @@ class vehicleController():
         
         target_steering, curve = self.pure_pursuit_lateral_controller(curr_x, curr_y, curr_yaw, future_unreached_waypoints)
         target_velocity = self.longititudal_controller(curr_x, curr_y, curr_vel, curr_yaw, future_unreached_waypoints, curve)
-
-
-        #Pack computed velocity and steering angle into Ackermann command
-        newAckermannCmd = AckermannDrive()
-        newAckermannCmd.speed = target_velocity
-        newAckermannCmd.steering_angle = target_steering
-
-        # Publish the computed control input to vehicle model
-        self.controlPub.publish(newAckermannCmd)
         
         current_time = rospy.get_time()
         filt_vel     = self.speed_filter.get_data(self.speed)
@@ -329,13 +318,9 @@ class vehicleController():
 
 
     def stop(self):
-        newAckermannCmd = AckermannDrive()
-        newAckermannCmd.speed = 0
-
         current_time = rospy.get_time()
         filt_vel     = self.speed_filter.get_data(self.speed)
         stop_accel = self.pid_speed.get_control(current_time, 0 - filt_vel)
-        self.accel_cmb.f64_cmd = stop_accel
+        self.accel_cmd.f64_cmd = stop_accel
         
         self.accel_cmd(self.accel_cmd)
-        self.controlPub.publish(newAckermannCmd)
