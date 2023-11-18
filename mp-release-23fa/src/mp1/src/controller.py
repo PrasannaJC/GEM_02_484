@@ -3,6 +3,9 @@ import numpy as np
 from scipy.integrate import ode
 from std_msgs.msg import Float32MultiArray
 
+from gazebo_msgs.srv import GetModelState, GetModelStateResponse
+from gazebo_msgs.msg import ModelState
+
 import math
 from util import euler_to_quaternion, quaternion_to_euler
 import matplotlib.pyplot as plt
@@ -99,7 +102,7 @@ class vehicleController():
         # Publisher to publish the control input to the vehicle model
         self.prev_vel = 0
         # self.L = 65 # Wheelbase, can be get from gem_control.py
-        self.L = 97
+        self.L = 120
         self.log_acceleration = True
         self.accelerations = []
         self.x = []
@@ -109,13 +112,13 @@ class vehicleController():
         self.fix_yaw = np.pi/2
         
         
-        self.gem_enable = False
-        self.pacmod_enable = False
+        self.gem_enable = True
+        self.pacmod_enable = True
 
         # GEM vehicle enable, publish once
         self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
         self.enable_cmd = Bool()
-        self.enable_cmd.data = False
+        self.enable_cmd.data = True
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
         self.gear_pub = rospy.Publisher('/pacmod/as_rx/shift_cmd', PacmodCmd, queue_size=1)
@@ -161,6 +164,25 @@ class vehicleController():
         self.steer_cmd = PositionWithSpeed()
 
 
+    def getModelState(self):
+        # Get the current state of the vehicle
+        # Input: None
+        # Output: ModelState, the state of the vehicle, contain the
+        #   position, orientation, linear velocity, angular velocity
+        #   of the vehicle
+        rospy.wait_for_service('/gazebo/get_model_state')
+        try:
+            serviceResponse = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+            resp = serviceResponse(model_name='gem')
+        except rospy.ServiceException as exc:
+            rospy.loginfo("Service did not process request: "+str(exc))
+            resp = GetModelStateResponse()
+            resp.success = False
+        return resp
+    
+    def enable_callback(self, msg):
+        self.pacmod_enable = msg.data    
+
     # Tasks 1: Read the documentation https://docs.ros.org/en/fuerte/api/gazebo/html/msg/ModelState.html
     #       and extract yaw, velocity, vehicle_position_x, vehicle_position_y
     # Hint: you may use the the helper function(quaternion_to_euler()) we provide to convert from quaternion to euler
@@ -191,7 +213,6 @@ class vehicleController():
 
     # Task 3: Lateral Controller (Pure Pursuit)
     def pure_pursuit_lateral_controller(self, curr_x, curr_y, curr_yaw, future_unreached_waypoints):
-
         global curve
         global xp
 
@@ -217,6 +238,7 @@ class vehicleController():
 
         # Find angle car is rotated away from lookahead
         alpha = np.arctan2( -lookahead[1] + curr_y, lookahead[0] - curr_x) - curr_yaw
+        print('alpha:', alpha/np.pi*180)
 
         # Pure pursuit equation
         f_angle = np.arctan(2*self.L*np.sin(alpha) / ld)
@@ -240,19 +262,15 @@ class vehicleController():
             steer_angle = -round(-0.1084*f_angle**2 + 21.775*f_angle, 2)
         else:
             steer_angle = 0.0
-
+        print("Steer Angle: ",steer_angle)
         return steer_angle, curve
     
     def longititudal_controller(self, curr_x, curr_y, curr_vel, curr_yaw, future_unreached_waypoints, curve):
 
         if curve:
-            target_velocity = 2
+            target_velocity = 0.5
         else:
-            target_velocity = 5
-
-        target_velocity = 20
-        print(target_velocity)
-
+            target_velocity = 0.7
 
         return target_velocity
     
@@ -274,17 +292,44 @@ class vehicleController():
         curr_y = self.fix_y
         curr_yaw = self.fix_yaw
 
+        self.gear_cmd.ui16_cmd = 3
+        self.brake_cmd.enable  = True
+        self.brake_cmd.clear   = False
+        self.brake_cmd.ignore  = False
+        self.brake_cmd.f64_cmd = 0.0
+
+        # enable gas 
+        self.accel_cmd.enable  = True
+        self.accel_cmd.clear   = False
+        self.accel_cmd.ignore  = False
+        self.accel_cmd.f64_cmd = 0.0
+        self.steer_cmd.angular_velocity_limit = 2.0 # radians/second
         
+        self.gear_pub.publish(self.gear_cmd)
+        print("Foward Engaged!")
+
+        # self.turn_pub.publish(self.turn_cmd)
+        # print("Turn Signal Ready!")
+        
+        # self.brake_pub.publish(self.brake_cmd)
+        # print("Brake Engaged!")
+
+        # self.accel_pub.publish(self.accel_cmd)
+        # print("Gas Engaged!")
+
+        self.gem_enable = True
+
         target_steering, curve = self.pure_pursuit_lateral_controller(curr_x, curr_y, curr_yaw, future_unreached_waypoints)
         target_velocity = self.longititudal_controller(curr_x, curr_y, curr_vel, curr_yaw, future_unreached_waypoints, curve)
         
         current_time = rospy.get_time()
         filt_vel     = self.speed_filter.get_data(self.speed)
-        print(filt_vel)
+        # print(filt_vel)
         target_acceleration = self.pid_speed.get_control(current_time, target_velocity - filt_vel)
 
         # Publish acceleration command
         self.accel_cmd.f64_cmd = target_acceleration  # Make sure this is the correct field
+        # print('target accel: ', self.accel_cmd)
         self.accel_pub.publish(self.accel_cmd)
 
         # Convert and publish steering angle
