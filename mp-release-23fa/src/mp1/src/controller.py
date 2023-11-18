@@ -312,6 +312,7 @@ class vehicleController():
         
         current_time = rospy.get_time()
         filt_vel     = self.speed_filter.get_data(self.speed)
+        print(filt_vel)
         target_acceleration = self.pid_speed.get_control(current_time, target_velocity - filt_vel)
 
         # Publish acceleration command
