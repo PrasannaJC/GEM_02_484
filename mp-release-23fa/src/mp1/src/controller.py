@@ -1,6 +1,4 @@
 import rospy
-from gazebo_msgs.srv import GetModelState, GetModelStateResponse
-from gazebo_msgs.msg import ModelState
 import numpy as np
 from scipy.integrate import ode
 from std_msgs.msg import Float32MultiArray
@@ -163,25 +161,6 @@ class vehicleController():
         self.steer_cmd = PositionWithSpeed()
 
 
-        
-
-    def getModelState(self):
-        # Get the current state of the vehicle
-        # Input: None
-        # Output: ModelState, the state of the vehicle, contain the
-        #   position, orientation, linear velocity, angular velocity
-        #   of the vehicle
-        rospy.wait_for_service('/gazebo/get_model_state')
-        try:
-            serviceResponse = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
-            resp = serviceResponse(model_name='gem')
-        except rospy.ServiceException as exc:
-            rospy.loginfo("Service did not process request: "+str(exc))
-            resp = GetModelStateResponse()
-            resp.success = False
-        return resp
-
-
     # Tasks 1: Read the documentation https://docs.ros.org/en/fuerte/api/gazebo/html/msg/ModelState.html
     #       and extract yaw, velocity, vehicle_position_x, vehicle_position_y
     # Hint: you may use the the helper function(quaternion_to_euler()) we provide to convert from quaternion to euler
@@ -323,4 +302,4 @@ class vehicleController():
         stop_accel = self.pid_speed.get_control(current_time, 0 - filt_vel)
         self.accel_cmd.f64_cmd = stop_accel
         
-        self.accel_cmd(self.accel_cmd)
+        self.accel_pub.publish(self.accel_cmd)
