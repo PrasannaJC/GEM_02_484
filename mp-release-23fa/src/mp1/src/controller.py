@@ -12,6 +12,17 @@ import matplotlib.pyplot as plt
 
 import time
 
+# Python Headers
+import os 
+import csv
+import scipy.signal as signal
+
+
+# GEM Sensor Headers
+from std_msgs.msg import String, Bool, Float32, Float64
+# GEM PACMod Headers
+from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt
+
 
 def func1(t, vars, vr, delta):
     curr_x = vars[0]
@@ -23,6 +34,67 @@ def func1(t, vars, vr, delta):
     dtheta = delta
     return [dx,dy,dtheta]
 
+
+class PID(object):
+
+    def __init__(self, kp, ki, kd, wg=None):
+
+        self.iterm  = 0
+        self.last_t = None
+        self.last_e = 0
+        self.kp     = kp
+        self.ki     = ki
+        self.kd     = kd
+        self.wg     = wg
+        self.derror = 0
+
+    def reset(self):
+        self.iterm  = 0
+        self.last_e = 0
+        self.last_t = None
+
+    def get_control(self, t, e, fwd=0):
+
+        if self.last_t is None:
+            self.last_t = t
+            de = 0
+        else:
+            de = (e - self.last_e) / (t - self.last_t)
+
+        if abs(e - self.last_e) > 0.5:
+            de = 0
+
+        self.iterm += e * (t - self.last_t)
+
+        # take care of integral winding-up
+        if self.wg is not None:
+            if self.iterm > self.wg:
+                self.iterm = self.wg
+            elif self.iterm < -self.wg:
+                self.iterm = -self.wg
+
+        self.last_e = e
+        self.last_t = t
+        self.derror = de
+
+        return fwd + self.kp * e + self.ki * self.iterm + self.kd * de
+
+class OnlineFilter(object):
+
+    def __init__(self, cutoff, fs, order):
+        
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+
+        # Get the filter coefficients 
+        self.b, self.a = signal.butter(order, normal_cutoff, btype='low', analog=False)
+
+        # Initialize
+        self.z = signal.lfilter_zi(self.b, self.a)
+    
+    def get_data(self, data):
+        filted, self.z = signal.lfilter(self.b, self.a, [data], zi=self.z)
+        return filted
 
 class vehicleController():
 
@@ -36,11 +108,62 @@ class vehicleController():
         self.accelerations = []
         self.x = []
         self.y = []
-        # self.fix_x = 380
-        # self.fix_y = 480
         self.fix_x = 640
         self.fix_y = 720
         self.fix_yaw = np.pi/2
+        
+        
+        self.gem_enable = False
+        self.pacmod_enable = False
+
+        # GEM vehicle enable, publish once
+        self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
+        self.enable_cmd = Bool()
+        self.enable_cmd.data = False
+
+        # GEM vehicle gear control, neutral, forward and reverse, publish once
+        self.gear_pub = rospy.Publisher('/pacmod/as_rx/shift_cmd', PacmodCmd, queue_size=1)
+        self.gear_cmd = PacmodCmd()
+        self.gear_cmd.ui16_cmd = 2  # SHIFT_NEUTRAL
+
+        # GEM vehilce brake control
+        self.brake_pub = rospy.Publisher('/pacmod/as_rx/brake_cmd', PacmodCmd, queue_size=1)
+        self.brake_cmd = PacmodCmd()
+        self.brake_cmd.enable = False
+        self.brake_cmd.clear = True
+        self.brake_cmd.ignore = True
+
+        # GEM vechile forward motion control
+        self.accel_pub = rospy.Publisher('/pacmod/as_rx/accel_cmd', PacmodCmd, queue_size=1)
+        self.accel_cmd = PacmodCmd()
+        self.accel_cmd.enable = False
+        self.accel_cmd.clear = True
+        self.accel_cmd.ignore = True
+
+        # GEM vechile steering wheel control
+        self.steer_pub = rospy.Publisher('/pacmod/as_rx/steer_cmd', PositionWithSpeed, queue_size=1)
+        self.steer_cmd = PositionWithSpeed()
+        self.steer_cmd.angular_position = 0.0  # radians, -: clockwise, +: counter-clockwise
+        self.steer_cmd.angular_velocity_limit = 2.0  # radians/second
+        
+        self.enable_sub = rospy.Subscriber("/pacmod/as_tx/enable", Bool, self.enable_callback)
+
+        self.speed_sub  = rospy.Subscriber("/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
+        self.speed      = 0.0
+        
+        # PID controller for speed
+        self.pid_speed = PID(0.5, 0.0, 0.1)  # Tune these parameters
+        
+        self.speed_filter  = OnlineFilter(1.2, 30, 4)
+
+        # Publishers
+        self.accel_pub = rospy.Publisher('/pacmod/as_rx/accel_cmd', PacmodCmd, queue_size=1)
+        self.steer_pub = rospy.Publisher('/pacmod/as_rx/steer_cmd', PositionWithSpeed, queue_size=1)
+
+        # Commands
+        self.accel_cmd = PacmodCmd()
+        self.steer_cmd = PositionWithSpeed()
+
 
         
 
@@ -155,7 +278,10 @@ class vehicleController():
 
 
         return target_velocity
-
+    
+    
+    def speed_callback(self, msg):
+        self.current_speed = round(msg.vehicle_speed, 3)  # Update with the correct attribute
 
     def execute(self, currentPose, future_unreached_waypoints):
         # Compute the control input to the vehicle according to the
@@ -170,11 +296,7 @@ class vehicleController():
         curr_x = self.fix_x
         curr_y = self.fix_y
         curr_yaw = self.fix_yaw
-        # Acceleration Profile
-        if self.log_acceleration:
-            acceleration = (curr_vel- self.prev_vel) * 100 # Since we are running in 100Hz
 
-        self.accelerations.append(acceleration)
         
         target_steering, curve = self.pure_pursuit_lateral_controller(curr_x, curr_y, curr_yaw, future_unreached_waypoints)
         target_velocity = self.longititudal_controller(curr_x, curr_y, curr_vel, curr_yaw, future_unreached_waypoints, curve)
@@ -187,6 +309,20 @@ class vehicleController():
 
         # Publish the computed control input to vehicle model
         self.controlPub.publish(newAckermannCmd)
+        
+        current_time = rospy.get_time()
+        filt_vel     = self.speed_filter.get_data(self.speed)
+        target_acceleration = self.pid_speed.get_control(current_time, target_velocity - filt_vel)
+
+        # Publish acceleration command
+        self.accel_cmd.f64_cmd = target_acceleration  # Make sure this is the correct field
+        self.accel_pub.publish(self.accel_cmd)
+
+        # Convert and publish steering angle
+        # Assuming target_steering is in degrees and needs conversion
+        steering_radians = np.radians(target_steering)
+        self.steer_cmd.angular_position = steering_radians
+        self.steer_pub.publish(self.steer_cmd)
 
         self.prev_vel = curr_vel
 
@@ -195,4 +331,10 @@ class vehicleController():
         newAckermannCmd = AckermannDrive()
         newAckermannCmd.speed = 0
 
+        current_time = rospy.get_time()
+        filt_vel     = self.speed_filter.get_data(self.speed)
+        stop_accel = self.pid_speed.get_control(current_time, 0 - filt_vel)
+        self.accel_cmb.f64_cmd = stop_accel
+        
+        self.accel_cmd(self.accel_cmd)
         self.controlPub.publish(newAckermannCmd)
