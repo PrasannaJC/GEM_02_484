@@ -97,24 +97,33 @@ class lanenet_detector():
 
         return binary_output
 
-    def color_thresh(self, img, thresh=(20, 250)):
-        """
-        Convert RGB to HSL and threshold to binary image using S channel
-        """
-        #1. Convert the image from RGB to HSL
-        #2. Apply threshold on S channel to get binary image
-        #Hint: threshold on H to remove green grass
 
+    def color_thresh(self, img, s_thresh=(50, 255), l_thresh=(0, 80)):
+        """
+        Convert RGB to HSL and threshold to binary image using S and L channels
+        """
         hsl = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
         s_channel = hsl[:,:,2]
+        l_channel = hsl[:,:,1]
         h_channel = hsl[:,:,0]
-        h_thresh = (0, 1)  # might need to tweak these values
-        h_binary = np.zeros_like(h_channel)
-        h_binary[(h_channel > h_thresh[0]) & (h_channel <= h_thresh[1])] = 1
+        
+        yellow_hue_range = (10, 45)
+        
+        # Threshold the S channel for saturation
         s_binary = np.zeros_like(s_channel)
-        s_binary[(s_channel >= thresh[0]) & (s_channel <= thresh[1])] = 1
+        s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
+        
+        # Threshold the L channel for lightness to include shadows
+        l_binary = np.zeros_like(l_channel)
+        l_binary[(l_channel >= l_thresh[0]) & (l_channel <= l_thresh[1])] = 1
+        
+        # Threshold the H channel for hue to capture yellow
+        h_binary = np.zeros_like(h_channel)
+        h_binary[(h_channel >= yellow_hue_range[0]) & (h_channel <= yellow_hue_range[1])] = 1
+        
+        # Combine the S, L, and H thresholds
         binary_output = np.zeros_like(s_channel)
-        binary_output[(s_binary == 1) & (h_binary == 1)] = 1
+        binary_output[(s_binary == 1) & (l_binary == 1) & (h_binary == 1)] = 1
 
         return binary_output
 
@@ -127,8 +136,15 @@ class lanenet_detector():
         SobelOutput = self.gradient_thresh(img)
         ColorOutput = self.color_thresh(img)
         # Combine the outputs
+        # binaryImage = np.zeros_like(SobelOutput)
+        # binaryImage[(ColorOutput == 1) | (SobelOutput == 1)] = 1
+        
+        # Invert the ColorOutput to create a mask that excludes unwanted colors
+        ColorMask = 1 - ColorOutput
+
+        # Combine the outputs using an AND operation
         binaryImage = np.zeros_like(SobelOutput)
-        binaryImage[(ColorOutput == 1) | (SobelOutput == 1)] = 1
+        binaryImage[(ColorMask == 1) & (SobelOutput == 1)] = 1
 
         # Remove noise from binary image
         binaryImage = morphology.remove_small_objects(

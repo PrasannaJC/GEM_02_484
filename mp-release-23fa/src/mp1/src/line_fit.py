@@ -87,7 +87,7 @@ def line_fit(binary_warped):
     
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 500
+    rightx = nonzerox[left_lane_inds] + 700
     righty = nonzeroy[left_lane_inds]
 
 
@@ -196,7 +196,7 @@ def create_waypoints(binary_warped):
 
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 500
+    rightx = nonzerox[left_lane_inds] + 700
     righty = nonzeroy[left_lane_inds]
         
 
@@ -277,7 +277,7 @@ def tune_fit(binary_warped, left_fit, right_fit):
         
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 500
+    rightx = nonzerox[left_lane_inds] + 700
     righty = nonzeroy[left_lane_inds]
 
 
