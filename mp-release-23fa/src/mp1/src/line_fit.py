@@ -83,11 +83,13 @@ def line_fit(binary_warped):
     global lefty
     global rightx
     global righty
+    global history1
+    global history2
     
     
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 700
+    rightx = nonzerox[left_lane_inds] + 800
     righty = nonzeroy[left_lane_inds]
 
 
@@ -191,12 +193,13 @@ def create_waypoints(binary_warped):
     global lefty
     global rightx
     global righty
-    
+    global history1
+    global history2
 
 
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 700
+    rightx = nonzerox[left_lane_inds] + 800
     righty = nonzeroy[left_lane_inds]
         
 
@@ -210,7 +213,7 @@ def create_waypoints(binary_warped):
             y_max = max(righty)
             y_min = min(righty)
             y_half = (y_max - y_min) // 2 + y_min
-        
+        history2 = y_min
     except ValueError as e:
     # Handle the case when max or min cannot be calculated
     # This could happen if the lists are empty or have invalid data
@@ -225,6 +228,7 @@ def create_waypoints(binary_warped):
     
     A = []
     B = []
+    
     for i in range(len(lefty)):
         if lefty[i] == y_min:
             A.append(leftx[i])
@@ -240,10 +244,13 @@ def create_waypoints(binary_warped):
     try:
         x_max = sum(A) // len(A)
         x_half = sum(B) // len(B)
+        history1 = x_max
 
     except:
-        x_max = 640
-        x_half = 640
+        # x_max = 640
+        # x_half = 640
+        x_max = history1
+        x_half = history1
 
     waypoint1 = [x_half, y_half]
     waypoint2 = [x_max, y_min]
@@ -277,7 +284,7 @@ def tune_fit(binary_warped, left_fit, right_fit):
         
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 700
+    rightx = nonzerox[left_lane_inds] + 800
     righty = nonzeroy[left_lane_inds]
 
 
