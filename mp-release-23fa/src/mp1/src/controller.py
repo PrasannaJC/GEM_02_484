@@ -165,7 +165,7 @@ class vehicleController():
         self.pacmod_enable = msg.data    
         
     def speed_callback(self, msg):
-        self.speed = round(msg.vehicle_speed, 3)
+        self.current_speed = round(msg.vehicle_speed, 3)
 
     # Task 3: Lateral Controller (Pure Pursuit)
     def pure_pursuit_lateral_controller(self, curr_x, curr_y, curr_yaw, future_unreached_waypoints):
