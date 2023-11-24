@@ -159,37 +159,17 @@ class lanenet_detector():
         ####
         controller = vehicleController()
         currState = controller.getModelState()
-        curr_x, curr_y, curr_vel, curr_yaw = controller.extract_vehicle_info(
+        x_pos, curr_y, curr_vel, curr_yaw, curr_x, yp = controller.extract_vehicle_info(
             currState)
         img_size = (img.shape[1], img.shape[0])
-
         # <gazebo warp>
-
-        src = np.float32(
-            [
-                [250, 290],     # Upper left
-                [330, 290],   # Upper right
-                [350, 470],  # Lower right
-                [150, 470],  # Lower left
-            ]
-        )
-        dst = np.float32(
-            [
-                [0, 0],     # Upper left
-                [540, 0],   # Upper right
-                [450, 480],  # Lower right
-                [220, 480],  # Lower left
-            ]
-        )
-
-        #Change: Jun
-
+        # Left Lane ONLY
         # src = np.float32(
         #     [
-        #         [230, 290],     # Upper left
-        #         [350, 290],   # Upper right
-        #         [370, 470],  # Lower right
-        #         [130, 470],  # Lower left
+        #         [220, 320],     # Upper left
+        #         [310, 320],   # Upper right
+        #         [350, 470],  # Lower right
+        #         [150, 470],  # Lower left
         #     ]
         # )
         # dst = np.float32(
@@ -200,6 +180,70 @@ class lanenet_detector():
         #         [220, 480],  # Lower left
         #     ]
         # )
+        
+        # Switch from left to right
+        
+        if yp > np.pi:
+            yp = yp - 2* np.pi
+        elif yp < -np.pi:
+            yp = yp + 2*np.pi
+        else:
+            yp = yp
+        if not((curr_x < -6 and curr_x > -15) and yp < abs(0.5)):
+            print('left')
+            src = np.float32(
+                [
+                    [220, 320],     # Upper left
+                    [310, 320],   # Upper right
+                    [350, 470],  # Lower right
+                    [150, 470],  # Lower left
+                ]
+            )
+            dst = np.float32(
+                [
+                    [0, 0],     # Upper left
+                    [540, 0],   # Upper right
+                    [450, 480],  # Lower right
+                    [220, 480],  # Lower left
+                ]
+            )
+        else:
+
+            print('right')
+            src = np.float32(
+                [
+                    [300, 260],     # Upper left
+                    [360, 260],   # Upper right
+                    [460, 470],  # Lower right
+                    [230, 470],  # Lower left
+                ]
+            )
+            dst = np.float32(
+                [
+                    [0, 0],     # Upper left
+                    [540, 0],   # Upper right
+                    [450, 480],  # Lower right
+                    [180, 480],  # Lower left
+                ]
+            )
+            # src = np.float32(
+            #     [
+            #         [220, 320],     # Upper left
+            #         [310, 320],   # Upper right
+            #         [350, 470],  # Lower right
+            #         [150, 470],  # Lower left
+            #     ]
+            # )
+            # dst = np.float32(
+            #     [
+            #         [0, 0],     # Upper left
+            #         [540, 0],   # Upper right
+            #         [450, 480],  # Lower right
+            #         [220, 480],  # Lower left
+            #     ]
+            # )
+
+
       
         # <Rosbag transform>
 
@@ -237,17 +281,17 @@ class lanenet_detector():
     def detection(self, img):
         controller = vehicleController()
         currState = controller.getModelState()
-        curr_x, curr_y, curr_vel, curr_yaw = controller.extract_vehicle_info(
+        x_pos, curr_y, curr_vel, curr_yaw, curr_x, yp = controller.extract_vehicle_info(
             currState)
 
         binary_img = self.combinedBinaryImage(img)
         img_birdeye, M, Minv = self.perspective_transform(binary_img)
 
-        waypoints = create_waypoints(img_birdeye, curr_x)
+        waypoints = create_waypoints(img_birdeye, curr_x, yp)
 
         if not self.hist:
             # Fit lane without previous result
-            ret = line_fit(img_birdeye, curr_x)
+            ret = line_fit(img_birdeye, curr_x, yp)
             # waypoints = create_waypoints(img_birdeye, curr_x)
             left_fit = ret['left_fit']
             right_fit = ret['right_fit']
@@ -259,7 +303,7 @@ class lanenet_detector():
         else:
             # Fit lane with previous result
             if not self.detected:
-                ret = line_fit(img_birdeye, curr_x)
+                ret = line_fit(img_birdeye, curr_x, yp)
                 # waypoints = create_waypoints(img_birdeye, curr_x)
 
                 if ret is not None:
@@ -278,7 +322,7 @@ class lanenet_detector():
             else:
                 left_fit = self.left_line.get_fit()
                 right_fit = self.right_line.get_fit()
-                ret = tune_fit(img_birdeye, left_fit, right_fit, curr_x)
+                ret = tune_fit(img_birdeye, left_fit, right_fit, curr_x, yp)
 
                 if ret is not None:
                     left_fit = ret['left_fit']
@@ -308,8 +352,10 @@ class lanenet_detector():
                 # x_trans, y_trans = cv2.perspectiveTransform(np.array([[[x, y]]]), Minv)[0][0]
                 cv2.circle(bird_fit_img, (int(x), int(y)), 5, (0, 0, 255), -1)
                 cv2.circle(bird_fit_img, (380, 480), 5, (235, 235, 52), -1)
+
             else:
-                print("Unable to detect lanes")
+                # print("Unable to detect lanes")
+                pass
 
             # return combine_fit_img, bird_fit_img
             return combine_fit_img, bird_fit_img, waypoints
