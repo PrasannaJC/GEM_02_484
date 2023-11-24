@@ -12,8 +12,8 @@ from std_msgs.msg import Header
 from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import Float32
 from skimage import morphology
-from controller import vehicleController
 from std_msgs.msg import Float32MultiArray
+from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
 
 
 
@@ -21,39 +21,47 @@ class lanenet_detector():
     def __init__(self):
 
         self.bridge = CvBridge()
-        # NOTE
-        # Uncomment this line for lane detection of GEM car in Gazebo
-        self.sub_image = rospy.Subscriber(
-            '/gem/front_single_camera/front_single_camera/image_raw', Image, self.img_callback, queue_size=1)
+
         # rosbag
-        # self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
-        self.pub_image = rospy.Publisher(
-            "lane_detection/annotate", Image, queue_size=1)
+        self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
+        self.gps_sub =  rospy.Subscriber('/novatel/inspva', Inspva, self.gps_callback, queue_size=100)
+        self.pub_image = rospy.Publisher('/lane_detection/annotate', Image, queue_size=1)
+
         self.pub_bird = rospy.Publisher(
-            "lane_detection/birdseye", Image, queue_size=1)
-        self.pub_waypoints = rospy.Publisher(
-            'chatter', Float32MultiArray, queue_size=10)
+            "/lane_detection/birdseye", Image, queue_size=1)
+        self.pub_waypoints = rospy.Publisher( 'chatter', Float32MultiArray, queue_size=10)
     
         self.left_line = Line(n=5)
         self.right_line = Line(n=5)
         self.detected = False
         self.hist = True
+        self.longitude = 0
+
+    def gps_callback(self, msg):
+        # gps_data = msg.data
+        # print('gps_data', gps_data)
+        self.longitude = msg.longitude
+        print('longitude: ', self.longitude)
+        # return longitude
 
     def img_callback(self, data):
 
         try:
             # Convert a ROS image message into an OpenCV image
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            # print('Flag 1 ------------------')
         except CvBridgeError as e:
             print(e)
 
+        # print('Flag 2 ========================================')
         raw_img = cv_image.copy()
-        # mask_image, bird_image = self.detection(raw_img)
+
+        # print('Flag3 --------------------------------------------')
         mask_image, bird_image, waypoints = self.detection(raw_img)
+        # print('waypoint===============',waypoints)
 
-        # print('-----------------------------------------------')
-        # print('waypoints', waypoints)
-
+        # print('Flag 4 ================================================')
+       
         if mask_image is not None and bird_image is not None:
             # Convert an OpenCV image into a ROS image message
             out_img_msg = self.bridge.cv2_to_imgmsg(mask_image, 'bgr8')
@@ -61,10 +69,12 @@ class lanenet_detector():
 
             # Publish image message in ROS
             self.pub_image.publish(out_img_msg)
+       
             self.pub_bird.publish(out_bird_msg)
 
             msg = Float32MultiArray()
-            msg.data = sum(waypoints, [])
+
+            msg.data = waypoints
 
             self.pub_waypoints.publish(msg)
         # return waypoints
@@ -84,45 +94,48 @@ class lanenet_detector():
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        # cv2.imwrite('Grayblur.png', blurred)
+
 
         sobel_x = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=5)
         sobel_y = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=5)
-        # cv2.imwrite("x.png",sobel_x)
-        # cv2.imwrite("y.png",sobel_y)
 
         combined_sobel = cv2.addWeighted(sobel_x, 0.1, sobel_y, 0.9, 0)
-        # cv2.imwrite("combined sobel.png",combined_sobel)
 
         sobel_scaled = np.uint8(255*combined_sobel/np.max(combined_sobel))
         binary_output = np.zeros_like(sobel_scaled)
         binary_output[(sobel_scaled >= thresh_min) &
                       (sobel_scaled <= thresh_max)] = 1
 
-        # cv2.imwrite("gradient_thresh.png",binary_output*255)
         return binary_output
 
-    def color_thresh(self, img, thresh=(20, 250)):
-        """
-        Convert RGB to HSL and threshold to binary image using S channel
-        """
-        #1. Convert the image from RGB to HSL
-        #2. Apply threshold on S channel to get binary image
-        #Hint: threshold on H to remove green grass
 
+    def color_thresh(self, img, s_thresh=(50, 255), l_thresh=(0, 80)):
+        """
+        Convert RGB to HSL and threshold to binary image using S and L channels
+        """
         hsl = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-        # cv2.imwrite("original.png", img)
         s_channel = hsl[:,:,2]
+        l_channel = hsl[:,:,1]
         h_channel = hsl[:,:,0]
-        h_thresh = (0, 1)  # might need to tweak these values
-        h_binary = np.zeros_like(h_channel)
-        h_binary[(h_channel > h_thresh[0]) & (h_channel <= h_thresh[1])] = 1
+        
+        yellow_hue_range = (10, 45)
+        
+        # Threshold the S channel for saturation
         s_binary = np.zeros_like(s_channel)
-        s_binary[(s_channel >= thresh[0]) & (s_channel <= thresh[1])] = 1
+        s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
+        
+        # Threshold the L channel for lightness to include shadows
+        l_binary = np.zeros_like(l_channel)
+        l_binary[(l_channel >= l_thresh[0]) & (l_channel <= l_thresh[1])] = 1
+        
+        # Threshold the H channel for hue to capture yellow
+        h_binary = np.zeros_like(h_channel)
+        h_binary[(h_channel >= yellow_hue_range[0]) & (h_channel <= yellow_hue_range[1])] = 1
+        
+        # Combine the S, L, and H thresholds
         binary_output = np.zeros_like(s_channel)
-        binary_output[(s_binary == 1) & (h_binary == 1)] = 1
+        binary_output[(s_binary == 1) & (l_binary == 1) & (h_binary == 1)] = 1
 
-        # cv2.imwrite("color_thresh.png",binary_output*255)
         return binary_output
 
 
@@ -133,17 +146,22 @@ class lanenet_detector():
         # Apply sobel filter and color filter on input image
         SobelOutput = self.gradient_thresh(img)
         ColorOutput = self.color_thresh(img)
-        cv2.imwrite("c.png", SobelOutput)
         # Combine the outputs
+        # binaryImage = np.zeros_like(SobelOutput)
+        # binaryImage[(ColorOutput == 1) | (SobelOutput == 1)] = 1
+        
+        # Invert the ColorOutput to create a mask that excludes unwanted colors
+        ColorMask = 1 - ColorOutput
+
+        # Combine the outputs using an AND operation
         binaryImage = np.zeros_like(SobelOutput)
-        binaryImage[(ColorOutput == 1) | (SobelOutput == 1)] = 1
+        binaryImage[(ColorMask == 1) & (SobelOutput == 1)] = 1
 
         # Remove noise from binary image
         binaryImage = morphology.remove_small_objects(
             binaryImage.astype('bool'), min_size=50, connectivity=2)
 
         binaryImage = binaryImage.astype('uint8')
-        cv2.imwrite("cbi.png", binaryImage*255)
 
         return binaryImage
 
@@ -157,112 +175,27 @@ class lanenet_detector():
 
         # cv2.imshow("123", img)
         ####
-        controller = vehicleController()
-        currState = controller.getModelState()
-        x_pos, curr_y, curr_vel, curr_yaw, curr_x, yp = controller.extract_vehicle_info(
-            currState)
         img_size = (img.shape[1], img.shape[0])
-        # <gazebo warp>
-        # Left Lane ONLY
-        # src = np.float32(
-        #     [
-        #         [220, 320],     # Upper left
-        #         [310, 320],   # Upper right
-        #         [350, 470],  # Lower right
-        #         [150, 470],  # Lower left
-        #     ]
-        # )
-        # dst = np.float32(
-        #     [
-        #         [0, 0],     # Upper left
-        #         [540, 0],   # Upper right
-        #         [450, 480],  # Lower right
-        #         [220, 480],  # Lower left
-        #     ]
-        # )
-        
-        # Switch from left to right
-        
-        if yp > np.pi:
-            yp = yp - 2* np.pi
-        elif yp < -np.pi:
-            yp = yp + 2*np.pi
-        else:
-            yp = yp
-        if not((curr_x < -6 and curr_x > -15) and yp < abs(0.5)):
-            print('left')
-            src = np.float32(
-                [
-                    [220, 320],     # Upper left
-                    [310, 320],   # Upper right
-                    [350, 470],  # Lower right
-                    [150, 470],  # Lower left
-                ]
-            )
-            dst = np.float32(
-                [
-                    [0, 0],     # Upper left
-                    [540, 0],   # Upper right
-                    [450, 480],  # Lower right
-                    [220, 480],  # Lower left
-                ]
-            )
-        else:
-
-            print('right')
-            src = np.float32(
-                [
-                    [300, 260],     # Upper left
-                    [360, 260],   # Upper right
-                    [460, 470],  # Lower right
-                    [230, 470],  # Lower left
-                ]
-            )
-            dst = np.float32(
-                [
-                    [0, 0],     # Upper left
-                    [540, 0],   # Upper right
-                    [450, 480],  # Lower right
-                    [180, 480],  # Lower left
-                ]
-            )
-            # src = np.float32(
-            #     [
-            #         [220, 320],     # Upper left
-            #         [310, 320],   # Upper right
-            #         [350, 470],  # Lower right
-            #         [150, 470],  # Lower left
-            #     ]
-            # )
-            # dst = np.float32(
-            #     [
-            #         [0, 0],     # Upper left
-            #         [540, 0],   # Upper right
-            #         [450, 480],  # Lower right
-            #         [220, 480],  # Lower left
-            #     ]
-            # )
-
 
       
         # <Rosbag transform>
 
-        # src = np.float32(
-        #     [
-        #         [400, 390],     # Upper left
-        #         [520, 390],   # Upper right
-        #         [640, 480], # Lower right
-        #         [200, 480],  # Lower left
-        #     ]
-        # )
-        # dst = np.float32(
-        #     [
-        #         [0, 0],     # Upper left
-        #         [640, 0],   # Upper right
-        #         [640, 480], # Lower right
-        #         [0, 480],  # Lower left
-        #     ]
-        # )
+        src = np.float32(
+            [
+                [500, 450],     # Upper left
+                [780, 450],   # Upper right
+                [1080, 700], # Lower right
+                [0, 700],  # Lower left
+            ]
+        )
+        dst = np.float32(
+            [
+                [0, 0],     # Upper left
+                [1280, 0],   # Upper right
+                [1280, 720], # Lower right
+                [0, 720],  # Lower left
+            ]
+        )
 
         M = cv2.getPerspectiveTransform(src, dst)
         Minv = cv2.getPerspectiveTransform(dst, src)
@@ -279,20 +212,16 @@ class lanenet_detector():
         return warped_img, M, Minv
 
     def detection(self, img):
-        controller = vehicleController()
-        currState = controller.getModelState()
-        x_pos, curr_y, curr_vel, curr_yaw, curr_x, yp = controller.extract_vehicle_info(
-            currState)
 
         binary_img = self.combinedBinaryImage(img)
         img_birdeye, M, Minv = self.perspective_transform(binary_img)
 
-        waypoints = create_waypoints(img_birdeye, curr_x, yp)
+        waypoints = create_waypoints(img_birdeye, self.longitude)
+        # print('waypoint1', waypoints)
 
         if not self.hist:
             # Fit lane without previous result
-            ret = line_fit(img_birdeye, curr_x, yp)
-            # waypoints = create_waypoints(img_birdeye, curr_x)
+            ret = line_fit(img_birdeye)
             left_fit = ret['left_fit']
             right_fit = ret['right_fit']
             nonzerox = ret['nonzerox']
@@ -301,11 +230,9 @@ class lanenet_detector():
             right_lane_inds = ret['right_lane_inds']
 
         else:
-            # Fit lane with previous result
+            # Fit lane with pr    waypoint1 = [x_half, y_half]evious result
             if not self.detected:
-                ret = line_fit(img_birdeye, curr_x, yp)
-                # waypoints = create_waypoints(img_birdeye, curr_x)
-
+                ret = line_fit(img_birdeye)
                 if ret is not None:
                     left_fit = ret['left_fit']
                     right_fit = ret['right_fit']
@@ -322,7 +249,7 @@ class lanenet_detector():
             else:
                 left_fit = self.left_line.get_fit()
                 right_fit = self.right_line.get_fit()
-                ret = tune_fit(img_birdeye, left_fit, right_fit, curr_x, yp)
+                ret = tune_fit(img_birdeye, left_fit, right_fit)
 
                 if ret is not None:
                     left_fit = ret['left_fit']
@@ -347,11 +274,12 @@ class lanenet_detector():
                 
                 # Visualize waypoints
                 # for waypoint in waypoints:
-                x, y = waypoints[1]  # Assuming waypoint is a tuple (x, y)
+                # x, y = waypoints[1]  # Assuming waypoint is a tuple (x, y)
+                x, y = waypoints
                 # Transform (x, y) back to the perspective of the original image
                 # x_trans, y_trans = cv2.perspectiveTransform(np.array([[[x, y]]]), Minv)[0][0]
                 cv2.circle(bird_fit_img, (int(x), int(y)), 5, (0, 0, 255), -1)
-                cv2.circle(bird_fit_img, (380, 480), 5, (235, 235, 52), -1)
+                # cv2.circle(bird_fit_img, (640, 720), 5, (235, 235, 52), -1)
 
             else:
                 # print("Unable to detect lanes")
