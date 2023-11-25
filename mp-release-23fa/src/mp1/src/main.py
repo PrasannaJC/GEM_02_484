@@ -30,7 +30,7 @@ class ControllerNode:
         data = msg.data
         # self.waypoints = [data[0], data[1]]
         self.waypoints = [data[0],data[1]]
-        print('data--------',self.waypoints)
+        # print('data--------',self.waypoints)
 
     def run_model(self):
         def shutdown():

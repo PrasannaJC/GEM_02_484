@@ -194,6 +194,14 @@ def create_waypoints(binary_warped, longitude):
     global rightx
     global righty
     
+
+    # turn_left = True
+    # lefty = nonzeroy[left_lane_inds]
+    # righty = nonzeroy[right_lane_inds]
+    # if len(left_lane_inds)!=0 and longitude > -88.235964:
+    #     turn_left = 
+    
+
     if longitude > -88.235964:  # East : Follow Left Lane
         leftx = nonzerox[left_lane_inds]
         lefty = nonzeroy[left_lane_inds]
@@ -211,6 +219,7 @@ def create_waypoints(binary_warped, longitude):
             y_max = max(lefty)
             y_min = min(lefty)
             y_half = (y_max - y_min) // 2 + y_min
+        
         except:
             y_max = max(righty)
             y_min = min(righty)
@@ -231,7 +240,7 @@ def create_waypoints(binary_warped, longitude):
     global x_temp
 
     A = []
-    # B = []
+    B = []
     for i in range(len(lefty)):
         if lefty[i] == y_min:
             A.append(leftx[i])
@@ -254,6 +263,7 @@ def create_waypoints(binary_warped, longitude):
         # x_half = 640
 
     # waypoint1 = [x_half, y_half]
+    current = []
     waypoint2 = [x_max, y_min]
 
     return waypoint2
@@ -330,7 +340,7 @@ def viz1(binary_warped, ret, save_file=None):
     # Generate x and y values for plotting
     ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
     left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
-    print(left_fitx)
+    # print(left_fitx)
     # right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
     right_fitx = (left_fit[0] + 400) * ploty ** 2 + left_fit[1] * ploty + right_fit[2]
 
@@ -435,4 +445,3 @@ def final_viz(undist, left_fit, right_fit, m_inv):
     result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
 
     return result
-

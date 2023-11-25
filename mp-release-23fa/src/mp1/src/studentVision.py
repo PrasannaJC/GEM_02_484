@@ -41,7 +41,7 @@ class lanenet_detector():
         # gps_data = msg.data
         # print('gps_data', gps_data)
         self.longitude = msg.longitude
-        print('longitude: ', self.longitude)
+        # print('longitude: ', self.longitude)
         # return longitude
 
     def img_callback(self, data):
@@ -109,7 +109,7 @@ class lanenet_detector():
         return binary_output
 
 
-    def color_thresh(self, img, s_thresh=(50, 255), l_thresh=(0, 80)):
+    def color_thresh(self, img, s_thresh=(0, 255), l_thresh=(0, 255)):
         """
         Convert RGB to HSL and threshold to binary image using S and L channels
         """
@@ -156,6 +156,8 @@ class lanenet_detector():
         # Combine the outputs using an AND operation
         binaryImage = np.zeros_like(SobelOutput)
         binaryImage[(ColorMask == 1) & (SobelOutput == 1)] = 1
+
+        cv2.imwrite("cbi.png", ColorOutput*255)
 
         # Remove noise from binary image
         binaryImage = morphology.remove_small_objects(
@@ -279,7 +281,7 @@ class lanenet_detector():
                 # Transform (x, y) back to the perspective of the original image
                 # x_trans, y_trans = cv2.perspectiveTransform(np.array([[[x, y]]]), Minv)[0][0]
                 cv2.circle(bird_fit_img, (int(x), int(y)), 5, (0, 0, 255), -1)
-                # cv2.circle(bird_fit_img, (640, 720), 5, (235, 235, 52), -1)
+                cv2.circle(bird_fit_img, (660, 720), 5, (235, 235, 52), -1) # x 640 default
 
             else:
                 # print("Unable to detect lanes")
