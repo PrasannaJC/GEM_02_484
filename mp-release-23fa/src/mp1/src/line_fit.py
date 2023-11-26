@@ -4,25 +4,14 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import pickle
 
-# feel free to adjust the parameters in the code if necessary
-
 global leftx
 global lefty
 global rightx
 global righty
+global x_temp
 
 
-# class lineFit():
-
-    # def __init__(self):
-    #     self.leftx = []
-    #     self.lefty = []
-    #     self.rightx = []
-    #     self.righty = []
-    #     self.waypoint1 = []
-    #     self.waypoint2 = []
-
-def line_fit(binary_warped, x_pos):
+def line_fit(binary_warped):
     """
     Find and fit lane lines
     """
@@ -31,6 +20,7 @@ def line_fit(binary_warped, x_pos):
     histogram = np.sum(binary_warped[binary_warped.shape[0] // 2:, :], axis=0)
     # Create an output image to draw on and visualize the result
     out_img = (np.dstack((binary_warped, binary_warped, binary_warped)) * 255).astype('uint8')
+
     # Find the peak of the left and right halves of the histogram
     # These will be the starting point for the left and right lines
     midpoint = int(histogram.shape[0] / 2)
@@ -95,17 +85,12 @@ def line_fit(binary_warped, x_pos):
     global lefty
     global rightx
     global righty
-
-    # if x_pos > -3:
+    
+    
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 400
+    rightx = nonzerox[left_lane_inds] + 700
     righty = nonzeroy[left_lane_inds]
-    # else:
-    #     leftx = nonzerox[right_lane_inds] - 400
-    #     lefty = nonzeroy[right_lane_inds]
-    #     rightx = nonzerox[right_lane_inds]
-    #     righty = nonzeroy[right_lane_inds]
 
 
     # Fit a second order polynomial to each using np.polyfit()
@@ -132,7 +117,7 @@ def line_fit(binary_warped, x_pos):
 
     return ret
 
-def create_waypoints(binary_warped, x_pos):
+def create_waypoints(binary_warped, longitude):
     """
     Find and fit lane lines
     """
@@ -171,7 +156,7 @@ def create_waypoints(binary_warped, x_pos):
         win_y_low = binary_warped.shape[0] - (window + 1) * window_height
         win_y_high = binary_warped.shape[0] - window * window_height
 
-        print("Image Size: ", binary_warped.shape)
+        # print("Image Size: ", binary_warped.shape)
 
         win_xleft_low = leftx_current - margin
         win_xleft_high = leftx_current + margin
@@ -208,14 +193,18 @@ def create_waypoints(binary_warped, x_pos):
     global lefty
     global rightx
     global righty
-
-    # if x_pos > -3:
-    leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 400
-    righty = nonzeroy[left_lane_inds]
-
-
+    
+    if longitude > -88.235964:  # East : Follow Left Lane
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[left_lane_inds] + 700
+        righty = nonzeroy[left_lane_inds]
+        
+    else: # West: Follow Right Lane
+        leftx = nonzerox[right_lane_inds] - 700
+        lefty = nonzeroy[right_lane_inds]
+        rightx = nonzerox[right_lane_inds] 
+        righty = nonzeroy[right_lane_inds]
     
     try:
         try:
@@ -234,13 +223,15 @@ def create_waypoints(binary_warped, x_pos):
         print(f"Error: {e}")
 
 
-    print('data:')
-    print(y_max)
-    print(y_min)
-    print(y_half)
+    # print('data:')
+    # print(y_max)
+    # print(y_min)
+    # print(y_half)
     
+    global x_temp
+
     A = []
-    B = []
+    # B = []
     for i in range(len(lefty)):
         if lefty[i] == y_min:
             A.append(leftx[i])
@@ -248,21 +239,26 @@ def create_waypoints(binary_warped, x_pos):
         if righty[i] == y_min:
             A.append(rightx[i])
 
-        if lefty[i] == y_half:
-            B.append(leftx[i])
+        # if lefty[i] == y_half:
+        #     B.append(leftx[i])
 
-        if righty[i] == y_half:
-            B.append(rightx[i])
+        # if righty[i] == y_half:
+        #     B.append(rightx[i])
+    try:
+        x_max = sum(A) // len(A)
+        x_temp = x_max
+        # x_half = sum(B) // len(B)
 
-    x_max = sum(A) // len(A)
-    x_half = sum(B) // len(B)
+    except:
+        x_max = x_temp
+        # x_half = 640
 
-    waypoint1 = [x_half, y_half]
+    # waypoint1 = [x_half, y_half]
     waypoint2 = [x_max, y_min]
 
-    return [waypoint1, waypoint2]
+    return waypoint2
 
-def tune_fit(binary_warped, left_fit, right_fit, x_pos):
+def tune_fit(binary_warped, left_fit, right_fit):
     """
     Given a previously fit line, quickly try to find the line based on previous lines
     """
@@ -285,19 +281,13 @@ def tune_fit(binary_warped, left_fit, right_fit, x_pos):
     right_lane_inds = (
             (nonzerox > (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] - margin)) & (
             nonzerox < (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] + margin)))
-    ## Original------------------------
-    # Again, extract left and right line pixel positions
-    # leftx = nonzerox[left_lane_inds]
-    # lefty = nonzeroy[left_lane_inds]
-    # rightx = nonzerox[right_lane_inds]
-    # righty = nonzeroy[right_lane_inds]
 
-    ## New-------------------------
-    # if x_pos > -3:
+        
     leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds] - 400
-    rightx = nonzerox[right_lane_inds]
-    righty = nonzeroy[right_lane_inds]
+    lefty = nonzeroy[left_lane_inds]
+    rightx = nonzerox[left_lane_inds] + 700
+    righty = nonzeroy[left_lane_inds]
+
 
     # If we don't find enough relevant points, return all None (this means error)
     min_inds = 10
