@@ -99,12 +99,12 @@ class vehicleController():
         # Publisher to publish the control input to the vehicle model
         self.prev_vel = 0
         # self.L = 65 # Wheelbase, can be get from gem_control.py
-        self.L = 105
+        self.L = 120
         self.log_acceleration = True
         self.accelerations = []
         self.x = []
         self.y = []
-        self.fix_x = 640  #640
+        self.fix_x = 640
         self.fix_y = 720
         self.fix_yaw = np.pi/2
         
@@ -148,7 +148,7 @@ class vehicleController():
         self.speed      = 0.0
         
         # PID controller for speed
-        self.pid_speed = PID(0.51, 0.0, 0.1)  # Tune these parameters
+        self.pid_speed = PID(0.5, 0.0, 0.1)  # Tune these parameters
         
         self.speed_filter  = OnlineFilter(1.2, 30, 4)
 
@@ -185,12 +185,11 @@ class vehicleController():
 
         # Pure pursuit equation
         f_angle = np.arctan(2*self.L*np.sin(alpha) / ld)
-        if abs(f_angle) > 0.07:
+        if abs(f_angle) > 0.1:
             curve = True
         else:
             curve = False
                     
-        print('curve: ',curve)
         f_angle = f_angle/np.pi*180
         
         if(f_angle > 35):
@@ -208,12 +207,11 @@ class vehicleController():
         return steer_angle, curve
     
     def longititudal_controller(self, curve):
-        # target_velocity = 1.1
 
         if curve:
-            target_velocity = 0.61
+            target_velocity = 0.5
         else:
-            target_velocity = 0.65
+            target_velocity = 0.7
 
         return target_velocity
     
@@ -254,7 +252,6 @@ class vehicleController():
         current_time = rospy.get_time()
         filt_vel     = self.speed_filter.get_data(self.speed)
         target_acceleration = self.pid_speed.get_control(current_time, target_velocity - filt_vel)
-        # print(filt_vel, target_acceleration)
 
         # Publish acceleration command
         self.accel_cmd.f64_cmd = target_acceleration  # Make sure this is the correct field
@@ -266,7 +263,6 @@ class vehicleController():
         steering_radians = np.radians(target_steering)
         self.steer_cmd.angular_position = steering_radians
         self.steer_pub.publish(self.steer_cmd)
-
 
 
 

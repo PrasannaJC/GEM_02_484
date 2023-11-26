@@ -4,11 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import pickle
 
-global leftx
-global lefty
-global rightx
-global righty
-
 
 def line_fit(binary_warped):
     """
@@ -79,17 +74,12 @@ def line_fit(binary_warped):
     right_lane_inds = np.concatenate(right_lane_inds)
     # Extract left and right line pixel positions
 
-    global leftx
-    global lefty
-    global rightx
-    global righty
-    global history1
-    global history2
+
     
     
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 800
+    rightx = nonzerox[left_lane_inds] + 700
     righty = nonzeroy[left_lane_inds]
 
 
@@ -117,145 +107,65 @@ def line_fit(binary_warped):
 
     return ret
 
-def create_waypoints(binary_warped):
-    """
-    Find and fit lane lines
-    """
-    # Assuming you have created a warped binary image called "binary_warped"
-    # Take a histogram of the bottom half of the image
-    histogram = np.sum(binary_warped[binary_warped.shape[0] // 2:, :], axis=0)
-    # Create an output image to draw on and visualize the result
-    out_img = (np.dstack((binary_warped, binary_warped, binary_warped)) * 255).astype('uint8')
-    # Find the peak of the left and right halves of the histogram
-    # These will be the starting point for the left and right lines
-    midpoint = int(histogram.shape[0] / 2)
-    leftx_base = np.argmax(histogram[100:midpoint]) + 100
-    rightx_base = np.argmax(histogram[midpoint:-100]) + midpoint
-
-    # Choose the number of sliding windows
-    nwindows = 9
-    # Set height of windows
-    window_height = int(binary_warped.shape[0] / nwindows)
-    # Identify the x and y positions of all nonzero pixels in the image
-    nonzero = binary_warped.nonzero()
-    nonzeroy = np.array(nonzero[0])
-    nonzerox = np.array(nonzero[1])
-    # Current positions to be updated for each window
-    leftx_current = leftx_base
-    rightx_current = rightx_base
-    # Set the width of the windows +/- margin
-    margin = 100
-    # Set minimum number of pixels found to recenter window
-    minpix = 50
-    # Create empty lists to receive left and right lane pixel indices
-    left_lane_inds = []
-    right_lane_inds = []
-    # Step through the windows one by one
-    for window in range(nwindows):
-        # Identify window boundaries in x and y (and right and left)
-        win_y_low = binary_warped.shape[0] - (window + 1) * window_height
-        win_y_high = binary_warped.shape[0] - window * window_height
-
-        # print("Image Size: ", binary_warped.shape)
-
-        win_xleft_low = leftx_current - margin
-        win_xleft_high = leftx_current + margin
-        win_xright_low = rightx_current - margin
-        win_xright_high = rightx_current + margin
-
-        # Draw the windows on the visualization image
-        cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), (0, 255, 0), 2)
-        # cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), (0,255,0), 2)
-        cv2.rectangle(out_img, (win_xleft_low + 400, win_y_low), (win_xleft_high + 400, win_y_high), (0, 255, 0), 2)
-
-        # Identify the nonzero pixels in x and y within the window
-        good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) &
-                            (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
-        good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) &
-                            (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
-
-        # Append these indices to the lists
-        left_lane_inds.append(good_left_inds)
-        right_lane_inds.append(good_right_inds)
-
-        # If you found > minpix pixels, recenter next window on their mean position
-        if len(good_left_inds) > minpix:
-            leftx_current = int(np.mean(nonzerox[good_left_inds]))
-        if len(good_right_inds) > minpix:
-            rightx_current = int(np.mean(nonzerox[good_right_inds]))
-
-    # Concatenate the arrays of indices
-    left_lane_inds = np.concatenate(left_lane_inds)
-    right_lane_inds = np.concatenate(right_lane_inds)
-    # Extract left and right line pixel positions
-
-    global leftx
-    global lefty
-    global rightx
-    global righty
-    global history1
-    global history2
 
 
-    leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 800
-    righty = nonzeroy[left_lane_inds]
-        
+def create_waypoints(binary_warped, ret):
+
+    # If line_fit failed to find lines (ret is None), return None
+    if ret is None:
+        return None
+    
+    # Call bird_fit to get the visualization with the lanes
+    bird_eye_result, left_lane_pts, right_lane_pts = bird_fit(binary_warped, ret)
+
+    # # Calculate the minimum y values for both the actual left lane and the 'ghost' right lane
+    y_min_left = np.min(left_lane_pts[:, 1])
+    x_at_y_min_left = left_lane_pts[np.argmin(left_lane_pts[:, 1]), 0]
+
+    y_min_right = np.min(right_lane_pts[:, 1])
+    x_at_y_min_right = right_lane_pts[np.argmin(right_lane_pts[:, 1]), 0]
 
     
-    try:
-        try:
-            y_max = max(lefty)
-            y_min = min(lefty)
-            y_half = (y_max - y_min) // 2 + y_min
-        except:
-            y_max = max(righty)
-            y_min = min(righty)
-            y_half = (y_max - y_min) // 2 + y_min
-        history2 = y_min
-    except ValueError as e:
-    # Handle the case when max or min cannot be calculated
-    # This could happen if the lists are empty or have invalid data
-        print("FLAG 3: Empty???------------------------------------")
-        print(f"Error: {e}")
-
-
-    # print('data:')
-    # print(y_max)
-    # print(y_min)
-    # print(y_half)
+    if x_at_y_min_left < 0:
+        for i in left_lane_pts:
+            if i[0] > 0:
+                y_min_left = i[1]
+                x_at_y_min_left = 0
+                break
+                
+    if x_at_y_min_right < 0:
+        for j in right_lane_pts:
+            if j[0] > 0:
+                y_min_right = j[1]
+                x_at_y_min_right = 0
+                break
     
-    A = []
-    B = []
     
-    for i in range(len(lefty)):
-        if lefty[i] == y_min:
-            A.append(leftx[i])
+    if x_at_y_min_left > 1280:
+        for i in left_lane_pts:
+            if i[0] < 1280:
+                y_min_left = i[1]
+                x_at_y_min_left = 1280
+                break
+    if x_at_y_min_right > 1280:
+        for j in right_lane_pts:
+            if j[0] < 1280:
+                y_min_right = j[1]
+                x_at_y_min_right = 1280
+                break
+                
+    # Calculate the midpoint x value for the waypoint
+    x_waypoint = (x_at_y_min_left + x_at_y_min_right) // 2
+    y_waypoint = (y_min_left + y_min_right) // 2
+    
 
-        if righty[i] == y_min:
-            A.append(rightx[i])
+    # Define your waypoints
+    waypoint1 = [640, 640]  # This seems to be a fixed central waypoint
+    waypoint2 = [x_waypoint, y_waypoint]  # This is the dynamic waypoint based on the lane detection
+    waypoints = [waypoint1, waypoint2]
+    
+    return waypoints, left_lane_pts, right_lane_pts
 
-        if lefty[i] == y_half:
-            B.append(leftx[i])
-
-        if righty[i] == y_half:
-            B.append(rightx[i])
-    try:
-        x_max = sum(A) // len(A)
-        x_half = sum(B) // len(B)
-        history1 = x_max
-
-    except:
-        # x_max = 640
-        # x_half = 640
-        x_max = history1
-        x_half = history1
-
-    waypoint1 = [x_half, y_half]
-    waypoint2 = [x_max, y_min]
-
-    return [waypoint1, waypoint2]
 
 def tune_fit(binary_warped, left_fit, right_fit):
     """
@@ -284,7 +194,7 @@ def tune_fit(binary_warped, left_fit, right_fit):
         
     leftx = nonzerox[left_lane_inds]
     lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 800
+    rightx = nonzerox[left_lane_inds] + 700
     righty = nonzeroy[left_lane_inds]
 
 
@@ -373,7 +283,7 @@ def bird_fit(binary_warped, ret, save_file=None):
 
     # Generate a polygon to illustrate the search window area
     # And recast the x and y points into usable format for cv2.fillPoly()
-    margin = 100  # NOTE: Keep this in sync with *_fit()
+    margin = 0  # NOTE: Keep this in sync with *_fit()
     left_line_window1 = np.array([np.transpose(np.vstack([left_fitx - margin, ploty]))])
     left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx + margin, ploty])))])
     left_line_pts = np.hstack((left_line_window1, left_line_window2))
@@ -401,7 +311,7 @@ def bird_fit(binary_warped, ret, save_file=None):
     # 	plt.savefig(save_file)
     # plt.gcf().clear()
 
-    return result
+    return result, left_line_pts[0], right_line_pts[0]
 
 def final_viz(undist, left_fit, right_fit, m_inv):
     """
