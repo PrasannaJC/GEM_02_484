@@ -250,8 +250,11 @@ class vehicleController():
         target_velocity = self.longititudal_controller(curve)
         
         current_time = rospy.get_time()
-        filt_vel     = self.speed_filter.get_data(self.speed)
+        filt_vel = self.speed_filter.get_data(self.speed)
         target_acceleration = self.pid_speed.get_control(current_time, target_velocity - filt_vel)
+        print("Filtered Velocity: ", filt_vel)
+        print("Target Accel: ", target_acceleration)
+        print("Current Speed: ", self.current_speed)
 
         # Publish acceleration command
         self.accel_cmd.f64_cmd = target_acceleration  # Make sure this is the correct field
