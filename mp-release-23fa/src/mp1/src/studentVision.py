@@ -13,7 +13,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import Float32
 from skimage import morphology
 from std_msgs.msg import Float32MultiArray
-from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
+# from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
 
 
 
@@ -22,9 +22,8 @@ class lanenet_detector():
 
         self.bridge = CvBridge()
 
-        # rosbag
         self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
-        self.gps_sub =  rospy.Subscriber('/novatel/inspva', Inspva, self.gps_callback, queue_size=100)
+        # self.gps_sub =  rospy.Subscriber('/novatel/inspva', Inspva, self.gps_callback, queue_size=100)
         self.pub_image = rospy.Publisher('/lane_detection/annotate', Image, queue_size=1)
 
         self.pub_bird = rospy.Publisher(
@@ -35,14 +34,12 @@ class lanenet_detector():
         self.right_line = Line(n=5)
         self.detected = False
         self.hist = True
+        # self.longitude = -88.235964
         self.longitude = 0
 
-    def gps_callback(self, msg):
-        # gps_data = msg.data
-        # print('gps_data', gps_data)
-        self.longitude = msg.longitude
-        # print('longitude: ', self.longitude)
-        # return longitude
+    # def gps_callback(self, msg):
+    #     self.longitude = msg.longitude
+
 
     def img_callback(self, data):
 
@@ -219,11 +216,12 @@ class lanenet_detector():
         img_birdeye, M, Minv = self.perspective_transform(binary_img)
 
         waypoints = create_waypoints(img_birdeye, self.longitude)
-        # print('waypoint1', waypoints)
+    
 
         if not self.hist:
             # Fit lane without previous result
-            ret = line_fit(img_birdeye)
+            
+            ret = line_fit(img_birdeye, self.longitude)
             left_fit = ret['left_fit']
             right_fit = ret['right_fit']
             nonzerox = ret['nonzerox']
@@ -234,7 +232,7 @@ class lanenet_detector():
         else:
             # Fit lane with pr    waypoint1 = [x_half, y_half]evious result
             if not self.detected:
-                ret = line_fit(img_birdeye)
+                ret = line_fit(img_birdeye, self.longitude)
                 if ret is not None:
                     left_fit = ret['left_fit']
                     right_fit = ret['right_fit']
@@ -251,7 +249,7 @@ class lanenet_detector():
             else:
                 left_fit = self.left_line.get_fit()
                 right_fit = self.right_line.get_fit()
-                ret = tune_fit(img_birdeye, left_fit, right_fit)
+                ret = tune_fit(img_birdeye, left_fit, right_fit, self.longitude)
 
                 if ret is not None:
                     left_fit = ret['left_fit']
