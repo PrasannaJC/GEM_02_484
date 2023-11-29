@@ -100,6 +100,7 @@ class vehicleController():
         self.prev_vel = 0
         # self.L = 65 # Wheelbase, can be get from gem_control.py
         self.L = 190
+
         self.log_acceleration = True
         self.accelerations = []
         self.x = []
@@ -148,8 +149,9 @@ class vehicleController():
         self.speed      = 0.0
         
         # PID controller for speed
+
         self.pid_speed = PID(0.82, 0.0, 0.0)  # Tune these parameters
-        
+
         self.speed_filter  = OnlineFilter(1.2, 30, 4)
 
         # Publishers

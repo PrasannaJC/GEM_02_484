@@ -13,6 +13,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import Float32
 from skimage import morphology
 from std_msgs.msg import Float32MultiArray
+from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
 
 
 
@@ -23,7 +24,6 @@ class lanenet_detector():
 
         # rosbag
         self.sub_image = rospy.Subscriber('/zed2/zed_node/right_raw/image_raw_color', Image, self.img_callback, queue_size=1)
-        
         self.pub_image = rospy.Publisher('/lane_detection/annotate', Image, queue_size=1)
 
         self.pub_bird = rospy.Publisher(
@@ -34,15 +34,25 @@ class lanenet_detector():
         self.right_line = Line(n=5)
         self.detected = False
         self.hist = True
+        self.longitude = 0
+
+    def gps_callback(self, msg):
+        # gps_data = msg.data
+        # print('gps_data', gps_data)
+        self.longitude = msg.longitude
+        print('longitude: ', self.longitude)
+        # return longitude
 
     def img_callback(self, data):
 
         try:
             # Convert a ROS image message into an OpenCV image
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            # print('Flag 1 ------------------')
         except CvBridgeError as e:
             print(e)
 
+        # print('Flag 2 ========================================')
         raw_img = cv_image.copy()
 
         mask_image, bird_image, waypoints = self.detection(raw_img)
@@ -59,7 +69,8 @@ class lanenet_detector():
             self.pub_bird.publish(out_bird_msg)
 
             msg = Float32MultiArray()
-            msg.data = sum(waypoints, [])
+
+            msg.data = waypoints
 
             self.pub_waypoints.publish(msg)
         # return waypoints
@@ -90,6 +101,7 @@ class lanenet_detector():
 
 
     def color_thresh(self, img, s_thresh=(0, 255), l_thresh=(0, 190)):
+
         """
         Convert RGB to HSL and threshold to binary image using S and L channels
         """
@@ -126,7 +138,7 @@ class lanenet_detector():
         # Apply sobel filter and color filter on input image
         SobelOutput = self.gradient_thresh(img)
         ColorOutput = self.color_thresh(img)
-        # Combine the outputs
+
         
         # Invert the ColorOutput to create a mask that excludes unwanted colors
         ColorMask = 1 - ColorOutput
@@ -148,7 +160,7 @@ class lanenet_detector():
         Get bird's eye view from input image
         """
 
-        img_size = (img.shape[1], img.shape[0])
+
         # <Rosbag transform>
 
         src = np.float32(
@@ -187,7 +199,6 @@ class lanenet_detector():
         binary_img = self.combinedBinaryImage(img)
         img_birdeye, M, Minv = self.perspective_transform(binary_img)
 
-        
 
         if not self.hist:
             # Fit lane without previous result
@@ -201,13 +212,13 @@ class lanenet_detector():
             waypoints, ptsl, ptsr = create_waypoints(img_birdeye, ret)
 
         else:
-            # Fit lane with previous result
+            # Fit lane with pr    waypoint1 = [x_half, y_half]evious result
             if not self.detected:
                 ret = line_fit(img_birdeye)
                 try:
                     waypoints, ptsl, ptsr = create_waypoints(img_birdeye, ret)
                 except:
-                    waypoints = [[0,0],[640, 200]]
+
                 if ret is not None:
                     left_fit = ret['left_fit']
                     right_fit = ret['right_fit']
@@ -226,10 +237,12 @@ class lanenet_detector():
                 left_fit = self.left_line.get_fit()
                 right_fit = self.right_line.get_fit()
                 ret = tune_fit(img_birdeye, left_fit, right_fit)
+
                 try:
                     waypoints, ptsl, ptsr = create_waypoints(img_birdeye, ret)
                 except:
                     waypoints = [[0,0],[640, 200]]
+
 
                 if ret is not None:
                     left_fit = ret['left_fit']

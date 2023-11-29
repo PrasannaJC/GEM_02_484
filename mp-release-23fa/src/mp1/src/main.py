@@ -28,7 +28,6 @@ class ControllerNode:
 
     def callback_function(self, msg):
         data = msg.data
-        self.waypoints = [[data[0], data[1]], [data[2], data[3]]]
 
     def run_model(self):
         def shutdown():
