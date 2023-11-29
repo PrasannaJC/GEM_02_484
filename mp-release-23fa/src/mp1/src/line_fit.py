@@ -5,7 +5,6 @@ import matplotlib.image as mpimg
 import pickle
 
 
-
 def line_fit(binary_warped):
     """
     Find and fit lane lines
@@ -15,7 +14,6 @@ def line_fit(binary_warped):
     histogram = np.sum(binary_warped[binary_warped.shape[0] // 2:, :], axis=0)
     # Create an output image to draw on and visualize the result
     out_img = (np.dstack((binary_warped, binary_warped, binary_warped)) * 255).astype('uint8')
-
     # Find the peak of the left and right halves of the histogram
     # These will be the starting point for the left and right lines
     midpoint = int(histogram.shape[0] / 2)
@@ -125,6 +123,7 @@ def line_fit(binary_warped):
     return ret
 
 
+
 def create_waypoints(binary_warped, ret):
 
     # If line_fit failed to find lines (ret is None), return None
@@ -191,7 +190,7 @@ def tune_fit(binary_warped, left_fit, right_fit):
     # from the next frame of video (also called "binary_warped")
     # It's now much easier to find line pixels!
     
-    lane_switch = False # SET THIS TO TRUE USE RIGHT LINE FOLLOWING AS BACKUP-------------------------------------
+    lane_switch = True # SET THIS TO TRUE USE RIGHT LINE FOLLOWING AS BACKUP-------------------------------------
     ret = line_fit(binary_warped)
 
     nonzero = binary_warped.nonzero()
@@ -232,7 +231,6 @@ def tune_fit(binary_warped, left_fit, right_fit):
         lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[left_lane_inds] + 700
         righty = nonzeroy[left_lane_inds]
-
 
 
     # If we don't find enough relevant points, return all None (this means error)
