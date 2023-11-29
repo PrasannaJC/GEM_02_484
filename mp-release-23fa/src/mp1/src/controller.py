@@ -99,8 +99,7 @@ class vehicleController():
         # Publisher to publish the control input to the vehicle model
         self.prev_vel = 0
         # self.L = 65 # Wheelbase, can be get from gem_control.py
-        self.L = 190
-
+        self.L = 210
         self.log_acceleration = True
         self.accelerations = []
         self.x = []
@@ -149,9 +148,8 @@ class vehicleController():
         self.speed      = 0.0
         
         # PID controller for speed
-
-        self.pid_speed = PID(0.82, 0.0, 0.0)  # Tune these parameters
-
+        self.pid_speed = PID(0.82, 0.0, 0.01)  # Tune these parameters
+        
         self.speed_filter  = OnlineFilter(1.2, 30, 4)
 
         # Publishers
@@ -183,7 +181,6 @@ class vehicleController():
 
         # Find angle car is rotated away from lookahead
         alpha = np.arctan2( -lookahead[1] + curr_y, lookahead[0] - curr_x) - curr_yaw
-        # print('alpha:', alpha/np.pi*180)
 
         # Pure pursuit equation
         f_angle = np.arctan(2*self.L*np.sin(alpha) / ld)
@@ -205,7 +202,9 @@ class vehicleController():
             steer_angle = -round(-0.1084*f_angle**2 + 21.775*f_angle, 2)
         else:
             steer_angle = 0.0
-        # print("Steer Angle: ",steer_angle)
+        print(steer_angle)
+        if steer_angle > 0:
+            steer_angle = 0.8*steer_angle
         return steer_angle, curve
     
     def longititudal_controller(self, curve):
@@ -254,9 +253,8 @@ class vehicleController():
         current_time = rospy.get_time()
         filt_vel = self.speed_filter.get_data(self.speed)
         target_acceleration = self.pid_speed.get_control(current_time, target_velocity - filt_vel)
-        print("Filtered Velocity: ", filt_vel)
+        # print("Filtered Velocity: ", filt_vel)
         # print("Target Accel: ", target_acceleration)
-        # print("Current Speed: ", self.current_speed)
 
         # Publish acceleration command
         self.accel_cmd.f64_cmd = target_acceleration  # Make sure this is the correct field
@@ -272,9 +270,10 @@ class vehicleController():
 
 
     def stop(self):
-        current_time = rospy.get_time()
-        filt_vel     = self.speed_filter.get_data(self.speed)
-        stop_accel = self.pid_speed.get_control(current_time, 0 - filt_vel)
-        self.accel_cmd.f64_cmd = stop_accel
+        # current_time = rospy.get_time()
+        # filt_vel     = self.speed_filter.get_data(self.speed)
+        # stop_accel = self.pid_speed.get_control(current_time, 0 - filt_vel)
+        # self.accel_cmd.f64_cmd = stop_accel
         
-        self.accel_pub.publish(self.accel_cmd)
+        # self.accel_pub.publish(self.accel_cmd)
+        pass

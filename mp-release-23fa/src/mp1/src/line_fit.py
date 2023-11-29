@@ -379,4 +379,3 @@ def final_viz(undist, left_fit, right_fit, m_inv):
     result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
 
     return result
-
