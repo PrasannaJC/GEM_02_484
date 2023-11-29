@@ -94,7 +94,7 @@ class lanenet_detector():
         return binary_output
 
 
-    def color_thresh(self, img, s_thresh=(0, 255), l_thresh=(0, 80)):
+    def color_thresh(self, img, s_thresh=(0, 255), l_thresh=(0, 150)):
         """
         Convert RGB to HSL and threshold to binary image using S and L channels
         """
