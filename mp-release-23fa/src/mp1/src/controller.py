@@ -99,7 +99,8 @@ class vehicleController():
         # Publisher to publish the control input to the vehicle model
         self.prev_vel = 0
         # self.L = 65 # Wheelbase, can be get from gem_control.py
-        self.L = 120
+        self.L = 190
+
         self.log_acceleration = True
         self.accelerations = []
         self.x = []
@@ -148,8 +149,9 @@ class vehicleController():
         self.speed      = 0.0
         
         # PID controller for speed
-        self.pid_speed = PID(0.5, 0.0, 0.1)  # Tune these parameters
-        
+
+        self.pid_speed = PID(0.82, 0.0, 0.0)  # Tune these parameters
+
         self.speed_filter  = OnlineFilter(1.2, 30, 4)
 
         # Publishers
@@ -170,10 +172,7 @@ class vehicleController():
     # Task 3: Lateral Controller (Pure Pursuit)
     def pure_pursuit_lateral_controller(self, curr_x, curr_y, curr_yaw, future_unreached_waypoints):
         
-        # print('FLAG1 ----------------------')
-
-        lookahead = future_unreached_waypoints
-        # print('lookahead', lookahead)
+        lookahead = future_unreached_waypoints[1]
 
         curr_x = self.fix_x
         curr_y = self.fix_y
@@ -212,9 +211,9 @@ class vehicleController():
     def longititudal_controller(self, curve):
 
         if curve:
-            target_velocity = 0.5
+            target_velocity = 1.2
         else:
-            target_velocity = 0.7
+            target_velocity = 1.3
 
         return target_velocity
     
@@ -253,8 +252,11 @@ class vehicleController():
         target_velocity = self.longititudal_controller(curve)
         
         current_time = rospy.get_time()
-        filt_vel     = self.speed_filter.get_data(self.speed)
+        filt_vel = self.speed_filter.get_data(self.speed)
         target_acceleration = self.pid_speed.get_control(current_time, target_velocity - filt_vel)
+        print("Filtered Velocity: ", filt_vel)
+        # print("Target Accel: ", target_acceleration)
+        # print("Current Speed: ", self.current_speed)
 
         # Publish acceleration command
         self.accel_cmd.f64_cmd = target_acceleration  # Make sure this is the correct field
