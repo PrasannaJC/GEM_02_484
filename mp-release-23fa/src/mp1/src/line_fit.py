@@ -73,14 +73,27 @@ def line_fit(binary_warped):
     left_lane_inds = np.concatenate(left_lane_inds)
     right_lane_inds = np.concatenate(right_lane_inds)
     # Extract left and right line pixel positions
-
-
     
     
-    leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 700
-    righty = nonzeroy[left_lane_inds]
+    left_pts_ct = len(left_lane_inds)
+    right_pts_ct = len(right_lane_inds)
+    
+    if left_pts_ct == 0:
+        left_count = 1
+    else:
+        left_count = left_pts_ct
+    
+    
+    if right_pts_ct > 5 * left_count:
+        leftx = nonzerox[right_lane_inds] - 700
+        lefty = nonzeroy[right_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+    else:
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[left_lane_inds] + 700
+        righty = nonzeroy[left_lane_inds]
 
 
     # Fit a second order polynomial to each using np.polyfit()
@@ -104,6 +117,8 @@ def line_fit(binary_warped):
     ret['out_img'] = out_img
     ret['left_lane_inds'] = left_lane_inds
     ret['right_lane_inds'] = right_lane_inds
+    
+    
 
     return ret
 
@@ -174,11 +189,9 @@ def tune_fit(binary_warped, left_fit, right_fit):
     # Assume you now have a new warped binary image
     # from the next frame of video (also called "binary_warped")
     # It's now much easier to find line pixels!
-    global leftx
-    global lefty
-    global rightx
-    global righty
-
+    
+    lane_switch = False # SET THIS TO TRUE USE RIGHT LINE FOLLOWING AS BACKUP-------------------------------------
+    ret = line_fit(binary_warped)
 
     nonzero = binary_warped.nonzero()
     nonzeroy = np.array(nonzero[0])
@@ -191,11 +204,33 @@ def tune_fit(binary_warped, left_fit, right_fit):
             (nonzerox > (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] - margin)) & (
             nonzerox < (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] + margin)))
 
+    if lane_switch:
+        left_pts_ct = len(ret['left_lane_inds'])
+        right_pts_ct = len(ret['right_lane_inds'])
+    else:
+        left_pts_ct = len(left_lane_inds)
+        right_pts_ct = len(right_lane_inds)
+    
+    if left_pts_ct == 0:
+        left_count = 1
+    else:
+        left_count = left_pts_ct
         
-    leftx = nonzerox[left_lane_inds]
-    lefty = nonzeroy[left_lane_inds]
-    rightx = nonzerox[left_lane_inds] + 700
-    righty = nonzeroy[left_lane_inds]
+    # print(left_pts_ct*5 - right_pts_ct)
+    
+    
+    if right_pts_ct > 5 * left_count:
+        # print('RIGHT')
+        leftx = nonzerox[right_lane_inds] - 700
+        lefty = nonzeroy[right_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+    else:
+        # print('LEFT')
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[left_lane_inds] + 700
+        righty = nonzeroy[left_lane_inds]
 
 
     # If we don't find enough relevant points, return all None (this means error)

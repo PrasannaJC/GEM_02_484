@@ -70,11 +70,6 @@ class lanenet_detector():
         """
         Apply sobel edge detection on input image in x, y direction
         """
-        # 1. Convert the image to gray scale
-        # 2. Gaussian blur the image
-        # 3. Use cv2.Sobel() to find derievatives for both X and Y Axis
-        # 4. Use cv2.addWeighted() to combine the results
-        # 5. Convert each pixel to uint8, then apply threshold to get binary image
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -94,7 +89,7 @@ class lanenet_detector():
         return binary_output
 
 
-    def color_thresh(self, img, s_thresh=(0, 255), l_thresh=(0, 150)):
+    def color_thresh(self, img, s_thresh=(0, 255), l_thresh=(0, 190)):
         """
         Convert RGB to HSL and threshold to binary image using S and L channels
         """
@@ -132,8 +127,6 @@ class lanenet_detector():
         SobelOutput = self.gradient_thresh(img)
         ColorOutput = self.color_thresh(img)
         # Combine the outputs
-        # binaryImage = np.zeros_like(SobelOutput)
-        # binaryImage[(ColorOutput == 1) | (SobelOutput == 1)] = 1
         
         # Invert the ColorOutput to create a mask that excludes unwanted colors
         ColorMask = 1 - ColorOutput
@@ -154,15 +147,8 @@ class lanenet_detector():
         """
         Get bird's eye view from input image
         """
-        # 1. Visually determine 4 source points and 4 destination points
-        # 2. Get M, the transform matrix, and Minv, the inverse using cv2.getPerspectiveTransform()
-        # 3. Generate warped image in bird view using cv2.warpPerspective()
 
-        # cv2.imshow("123", img)
-        ####
         img_size = (img.shape[1], img.shape[0])
-
-      
         # <Rosbag transform>
 
         src = np.float32(
@@ -187,7 +173,7 @@ class lanenet_detector():
         
         warped_img = cv2.warpPerspective(
             img, M, img_size, flags=cv2.INTER_LINEAR)
-        # cv2.imwrite("warp.png", warped_img*255)
+        
         if verbose:
             # If verbose is true, visualize the source and destination points on the original and warped images
             for i in range(4):
@@ -215,10 +201,13 @@ class lanenet_detector():
             waypoints, ptsl, ptsr = create_waypoints(img_birdeye, ret)
 
         else:
-            # Fit lane with pr    waytarget = [x_half, y_half]evious result
+            # Fit lane with previous result
             if not self.detected:
                 ret = line_fit(img_birdeye)
-                waypoints, ptsl, ptsr = create_waypoints(img_birdeye, ret)
+                try:
+                    waypoints, ptsl, ptsr = create_waypoints(img_birdeye, ret)
+                except:
+                    waypoints = [[0,0],[640, 200]]
                 if ret is not None:
                     left_fit = ret['left_fit']
                     right_fit = ret['right_fit']
@@ -237,7 +226,10 @@ class lanenet_detector():
                 left_fit = self.left_line.get_fit()
                 right_fit = self.right_line.get_fit()
                 ret = tune_fit(img_birdeye, left_fit, right_fit)
-                waypoints, ptsl, ptsr = create_waypoints(img_birdeye, ret)
+                try:
+                    waypoints, ptsl, ptsr = create_waypoints(img_birdeye, ret)
+                except:
+                    waypoints = [[0,0],[640, 200]]
 
                 if ret is not None:
                     left_fit = ret['left_fit']
@@ -272,9 +264,12 @@ class lanenet_detector():
                 
                 # create vector pointing from current pos to target
                 vector = target - current
-                fraction = 0.5 
+                fraction = 0.1 
                 scaled_vector = fraction * vector
                 vector_endpoint = current + scaled_vector
+                
+                alpha = np.arctan2( -target[1] + current[1], target[0] - current[0]) - np.pi/2
+                # print("Wheel Angle: ",-np.rad2deg(alpha))
 
                 # Draw the vector line
                 cv2.line(bird_fit_img, tuple(current), tuple(vector_endpoint.astype(int)), (0, 255, 0), 2)  # Green line with thickness 2
@@ -282,11 +277,11 @@ class lanenet_detector():
                 # Draw detected lane lines
                 for point in ptsl:
                     x, y = point
-                    cv2.circle(bird_fit_img, (int(x), int(y)), 5, (235, 235, 50), -1)  # Blue color, filled circle
+                    cv2.circle(bird_fit_img, (int(x), int(y)), 5, (235, 235, 50), -1)
 
                 for point in ptsr:
                     x, y = point
-                    cv2.circle(bird_fit_img, (int(x), int(y)), 5, (235, 235, 50), -1)  # Blue color, filled circle
+                    cv2.circle(bird_fit_img, (int(x), int(y)), 5, (235, 235, 50), -1)
 
 
             else:
